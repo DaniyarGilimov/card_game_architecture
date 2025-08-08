@@ -12,6 +12,8 @@ github.com/daniyargilimov/card_game_model v0.0.0-20250808085941-aa6bf22b3b83 h1:
 github.com/daniyargilimov/card_game_model v0.0.0-20250808085941-aa6bf22b3b83/go.mod h1:HIBdAM7a/iHvbTKLp+8LwIW8RzA1U3dWSlyvFvsPvvI=
 github.com/daniyargilimov/card_game_model v0.0.0-20250808104123-5f8b2a1017df h1:0SY4GOPBKJhROXgTgALcQ/tPL+qNsCtT2M7byYdfrbA=
 github.com/daniyargilimov/card_game_model v0.0.0-20250808104123-5f8b2a1017df/go.mod h1:HIBdAM7a/iHvbTKLp+8LwIW8RzA1U3dWSlyvFvsPvvI=
+github.com/daniyargilimov/card_game_model v0.0.0-20250808121024-76b9be94628c h1:j1pBs+Gy6gX2T88S4XKBGfRBoDUCJaXzCtaJdgMKsNc=
+github.com/daniyargilimov/card_game_model v0.0.0-20250808121024-76b9be94628c/go.mod h1:HIBdAM7a/iHvbTKLp+8LwIW8RzA1U3dWSlyvFvsPvvI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

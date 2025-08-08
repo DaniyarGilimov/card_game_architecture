@@ -190,7 +190,18 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 		if err != nil {
 			break
 		}
-		si := gamemodel.StatusInstruction{}
+
+		// Local struct to replace gamemodel.StatusInstruction
+		type StatusInstruction struct {
+			Status string `json:"status"`
+			Data   struct {
+				InitialBet int64 `json:"initialBet"`
+				MinBet     int64 `json:"minBet"`
+			} `json:"data"`
+		}
+
+		si := StatusInstruction{}
+
 		json.Unmarshal(command, &si)
 		z := make([]byte, len(command))
 		copy(z, command)
@@ -203,6 +214,7 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			sc.State.Name = SearchingStop
 			sc.Mu.Unlock()
 		case SearchRoom:
+		case "search_rooms":
 			sc.Mu.Lock()
 			sc.State.Name = SearchingCertainState
 			sc.State.InitialBet = si.Data.InitialBet
@@ -211,6 +223,7 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			go SendStateSearcher(sc, res)
 			// go sc.Service.ServiceLogging.CreateSearcherLog(sc.UserID, res)
 		case SearchAllRooms:
+		case "search_places":
 			sc.Mu.Lock()
 			sc.State.Name = SearchingAllState
 			sc.Mu.Unlock()
@@ -361,7 +374,7 @@ func InstSendAllListRoom(rManager *RoomManager, chips int64) []byte {
 		m[v.Bet] = 0
 	}
 
-	exportData := &gamemodel.ExportData{Status: SearchAllRooms}
+	exportData := &gamemodel.ExportData{Status: SearchAllRooms, InstructionType: "search_places"}
 	exportRooms := []*gamemodel.ExportAllRoomsData{}
 
 	rManager.RoomsLock.RLock()
