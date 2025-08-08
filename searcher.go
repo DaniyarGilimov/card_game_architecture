@@ -303,7 +303,7 @@ func SendCertainListRoom(pinCode string, sc *SearcherConn, rManager *RoomManager
 // InstGetCertainListRoom used to get list of rooms with bet in bytes
 func InstGetCertainListRoom(initialBet int64, rManager *RoomManager) []byte {
 	exportRooms := []*gamemodel.ExportRoomData{}
-	exportData := &gamemodel.ExportData{Status: SearchRoom}
+	exportData := &gamemodel.ExportData{Status: SearchRoom, InstructionType: "search_rooms"}
 
 	rManager.RoomsLock.RLock()
 	for _, r := range rManager.AllRooms {
