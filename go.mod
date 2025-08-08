@@ -4,7 +4,7 @@ go 1.23.5
 
 require (
 	github.com/daniyargilimov/card_api_model v0.0.0-20250807130408-c9a60ee50cd7
-	github.com/daniyargilimov/card_game_model v0.0.0-20250808085941-aa6bf22b3b83
+	github.com/daniyargilimov/card_game_model v0.0.0-20250808104123-5f8b2a1017df
 	github.com/gorilla/websocket v1.5.3
 	github.com/sirupsen/logrus v1.9.3
 )

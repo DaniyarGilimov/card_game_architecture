@@ -44,7 +44,7 @@ func (h *GameHandler) GeneralSocketHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	request := &gamemodel.RequestGeneral{}
+	request := &RequestGeneral{}
 	if err := request.ParseRequest(r); err != nil {
 		logrus.Warn(err.Error())
 		ws.Close()
@@ -67,7 +67,7 @@ func (h *GameHandler) RoomHandler(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		return
 	}
-	request := &gamemodel.RequestJoinRoom{}
+	request := &RequestJoinRoom{}
 	if err := ParseRequest(request, r); err != nil {
 		logrus.Warn(err.Error())
 		ws.Close()
@@ -90,7 +90,7 @@ func (h *GameHandler) RoomHandlerV2(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		return
 	}
-	request := &gamemodel.RequestJoinRoom{}
+	request := &RequestJoinRoom{}
 	if err := ParseRequest(request, r); err != nil {
 
 		ws.Close()
@@ -107,14 +107,40 @@ func (h *GameHandler) RoomHandlerV2(w http.ResponseWriter, r *http.Request) {
 	//case utils.RequestJoinOpenOptions:
 	//	h.roomManager.RoomJoinOptionsV2(request, ws)
 	case RequestJoinOpenAny:
-		RoomJoinAnyV2(request, ws, h.roomManager)
+		RoomJoinAny(request, ws, h.roomManager)
 	case RequestJoinOpenAnyTournament:
 		// h.roomManager.RoomJoinAnyTournamentV2(request, ws)
 	}
 }
 
+// RoomHandlerV3 final version
+func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if _, ok := err.(websocket.HandshakeError); ok {
+		http.Error(w, "Not a websocket handshake", 400)
+		return
+	} else if err != nil {
+		return
+	}
+	request := &RequestJoinRoom{}
+	if err := ParseRequest(request, r); err != nil {
+
+		ws.Close()
+		return
+	}
+
+	switch request.JoinType {
+	case RequestCreate:
+		RoomCreate(request, ws, h.roomManager)
+	case RequestJoinByID:
+		RoomJoinByID(request.PlayerToken, request.RoomID, ws, h.roomManager)
+	case RequestJoinOpenAny:
+		RoomJoinAny(request, ws, h.roomManager)
+	}
+}
+
 // ParseRequest
-func ParseRequest(resp *gamemodel.RequestJoinRoom, r *http.Request) error {
+func ParseRequest(resp *RequestJoinRoom, r *http.Request) error {
 	resp.RoomInfo = &gamemodel.RoomInfo{
 		RoomSize: 6,
 		IsOpen:   true,

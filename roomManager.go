@@ -101,9 +101,7 @@ func ClearJoiningMark(playerID int, rm *RoomManager) {
 	rm.JoiningPlayersMutex.Lock()
 	defer rm.JoiningPlayersMutex.Unlock()
 
-	if _, ok := rm.PlayersAttemptingJoin[playerID]; ok {
-		delete(rm.PlayersAttemptingJoin, playerID)
-	}
+	delete(rm.PlayersAttemptingJoin, playerID)
 }
 
 func AlreadyPlaying(playerToken string, rManager *RoomManager) error {
@@ -141,7 +139,7 @@ func RoomDelete(fRoom *Room, rManager *RoomManager) {
 func RoomCloseChannels(fRoom *Room) {
 	defer func() {
 		if r := recover(); r != nil { //This used to solve closed channel issue
-			logrus.Error("RoomCloseChannels %s", r)
+			logrus.Errorf("RoomCloseChannels %s", r)
 		}
 	}()
 
@@ -208,7 +206,7 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 	Join(ctx, fRoom, playerConn, rManager)
 }
 
-func RoomCreate(request *gamemodel.RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
+func RoomCreate(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(request.PlayerToken)
 	if err != nil {
 		ws.Close()
@@ -276,7 +274,7 @@ func RoomCreate(request *gamemodel.RequestJoinRoom, ws *websocket.Conn, rManager
 
 }
 
-func RoomJoinPrivateV2(request *gamemodel.RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
+func RoomJoinPrivateV2(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(request.PlayerToken)
 	if err != nil {
 		log.Print("RoomJoinPrivateV2: token")
@@ -339,7 +337,7 @@ func RoomJoinPrivateV2(request *gamemodel.RequestJoinRoom, ws *websocket.Conn, r
 	Join(ctx, fRoom, playerConn, rManager)
 }
 
-func RoomJoinAnyV2(request *gamemodel.RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
+func RoomJoinAny(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(request.PlayerToken)
 	if err != nil {
 		ws.Close()
