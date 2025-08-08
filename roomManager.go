@@ -337,8 +337,8 @@ func RoomJoinPrivateV2(request *RequestJoinRoom, ws *websocket.Conn, rManager *R
 	Join(ctx, fRoom, playerConn, rManager)
 }
 
-func RoomJoinAny(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
-	user, err := rManager.Services.GetUserByToken(request.PlayerToken)
+func RoomJoinAny(playerToken string, ws *websocket.Conn, rManager *RoomManager) {
+	user, err := rManager.Services.GetUserByToken(playerToken)
 	if err != nil {
 		ws.Close()
 		return
@@ -352,7 +352,7 @@ func RoomJoinAny(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomMan
 	defer ClearJoiningMark(user.UserID, rManager)
 
 Restart:
-	if err := AlreadyPlaying(request.PlayerToken, rManager); err != nil {
+	if err := AlreadyPlaying(playerToken, rManager); err != nil {
 		ws.Close()
 
 		return
@@ -361,6 +361,7 @@ Restart:
 	var fRoom *Room
 	rManager.RoomsLock.RLock()
 	ltBet := int64(0)
+	initialBet := int64(0)
 
 	for {
 		if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
@@ -380,7 +381,7 @@ Restart:
 				ltBet = 0
 				if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
 
-					request.RoomInfo.InitialBet = bet
+					initialBet = bet
 					goto Found
 				}
 			}
@@ -396,7 +397,11 @@ Found:
 		mainContext := context.Background() //TODO: findout which one to use
 		ctx, cancle := context.WithCancel(mainContext)
 
-		fRoom = NewRoom(rManager, request.RoomInfo, ctx, cancle)
+		fRoom = NewRoom(rManager, &gamemodel.RoomInfo{
+			RoomSize:   6,
+			IsOpen:     true,
+			InitialBet: initialBet,
+		}, ctx, cancle)
 
 		go func() {
 			if err := Run(fRoom, rManager); err != nil {

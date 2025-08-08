@@ -107,7 +107,7 @@ func (h *GameHandler) RoomHandlerV2(w http.ResponseWriter, r *http.Request) {
 	//case utils.RequestJoinOpenOptions:
 	//	h.roomManager.RoomJoinOptionsV2(request, ws)
 	case RequestJoinOpenAny:
-		RoomJoinAny(request, ws, h.roomManager)
+		RoomJoinAny(request.PlayerToken, ws, h.roomManager)
 	case RequestJoinOpenAnyTournament:
 		// h.roomManager.RoomJoinAnyTournamentV2(request, ws)
 	}
@@ -122,20 +122,23 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		return
 	}
-	request := &RequestJoinRoom{}
-	if err := ParseRequest(request, r); err != nil {
+	request := &RequestJoinRoomV3{}
+	if err := request.ParseRequest(r); err != nil {
 
 		ws.Close()
 		return
 	}
 
-	switch request.JoinType {
-	case RequestCreate:
-		RoomCreate(request, ws, h.roomManager)
-	case RequestJoinByID:
+	switch request.Type {
+	case "create_room":
+		RoomCreate(&RequestJoinRoom{
+			PlayerToken: request.PlayerToken,
+			RoomInfo:    request.RoomInfo,
+		}, ws, h.roomManager)
+	case "join_by_room_id":
 		RoomJoinByID(request.PlayerToken, request.RoomID, ws, h.roomManager)
-	case RequestJoinOpenAny:
-		RoomJoinAny(request, ws, h.roomManager)
+	case "join_any":
+		RoomJoinAny(request.PlayerToken, ws, h.roomManager)
 	}
 }
 
