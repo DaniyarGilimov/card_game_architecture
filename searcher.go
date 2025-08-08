@@ -214,10 +214,16 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			sc.State.Name = SearchingStop
 			sc.Mu.Unlock()
 		case SearchRoom:
-		case "search_rooms":
 			sc.Mu.Lock()
 			sc.State.Name = SearchingCertainState
 			sc.State.InitialBet = si.Data.InitialBet
+			sc.Mu.Unlock()
+			res := InstGetCertainListRoom(sc.State.InitialBet, roomManager)
+			go SendStateSearcher(sc, res)
+		case "search_rooms":
+			sc.Mu.Lock()
+			sc.State.Name = SearchingCertainState
+			sc.State.InitialBet = si.Data.MinBet
 			sc.Mu.Unlock()
 			res := InstGetCertainListRoom(sc.State.InitialBet, roomManager)
 			go SendStateSearcher(sc, res)
