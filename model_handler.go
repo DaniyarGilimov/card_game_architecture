@@ -99,5 +99,11 @@ func (resp *RequestGeneral) ParseRequest(r *http.Request) error {
 		return nil
 	}
 
+	if len(params["player_token"]) > 0 {
+		resp.PlayerToken = params["player_token"][0]
+
+		return nil
+	}
+
 	return errors.New("not found there")
 }
