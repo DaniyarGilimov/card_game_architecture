@@ -170,7 +170,6 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room) {
 				if !ok {
 					// TODO: game can be dead
 				}
-				return
 			}
 		}
 	}
