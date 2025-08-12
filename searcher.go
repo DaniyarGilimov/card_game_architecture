@@ -229,6 +229,11 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			go SendStateSearcher(sc, res)
 			// go sc.Service.ServiceLogging.CreateSearcherLog(sc.UserID, res)
 		case SearchAllRooms:
+			sc.Mu.Lock()
+			sc.State.Name = SearchingAllState
+			sc.Mu.Unlock()
+			res := InstSendAllListRoom(roomManager, sc.Chips)
+			go SendStateSearcher(sc, res)
 		case "search_places":
 			sc.Mu.Lock()
 			sc.State.Name = SearchingAllState
