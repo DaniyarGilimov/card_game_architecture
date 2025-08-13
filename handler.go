@@ -109,7 +109,7 @@ func (h *GameHandler) RoomHandlerV2(w http.ResponseWriter, r *http.Request) {
 	case RequestJoinOpenAny:
 		RoomJoinAny(request.PlayerToken, ws, h.roomManager)
 	case RequestJoinOpenAnyTournament:
-		// h.roomManager.RoomJoinAnyTournamentV2(request, ws)
+		RoomJoinAnyTournamentV2(request.PlayerToken, request, ws, h.roomManager)
 	}
 }
 
