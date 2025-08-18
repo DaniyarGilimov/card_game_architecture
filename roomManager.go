@@ -369,7 +369,7 @@ Restart:
 			for _, r := range rManager.AllRooms {
 				if r.RoomInfo.InitialBet == bet {
 					r.PlayerConnsLock.RLock()
-					roomCount := len(fRoom.PlayerConns)
+					roomCount := len(r.PlayerConns)
 					r.PlayerConnsLock.RUnlock()
 
 					if roomCount < r.RoomInfo.RoomSize {
@@ -486,7 +486,7 @@ Restart:
 			for _, r := range rManager.AllRooms {
 				if r.RoomInfo.InitialBet == bet && r.RoomInfo.TournamentID == request.TournamentID {
 					r.PlayerConnsLock.RLock()
-					roomCount := len(fRoom.PlayerConns)
+					roomCount := len(r.PlayerConns)
 					r.PlayerConnsLock.RUnlock()
 					if roomCount < 6 {
 						fRoom = r
