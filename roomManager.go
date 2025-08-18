@@ -443,17 +443,20 @@ Found:
 func RoomJoinAnyTournamentV2(playerToken string, request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(playerToken)
 	if err != nil {
+		log.Print("RoomJoinAnyTournamentV2: token")
 		ws.Close()
 		return
 	}
 
 	chips, err := rManager.Repo.GetTournamentChips(user.UserID, request.TournamentID)
 	if err != nil {
+		log.Print("RoomJoinAnyTournamentV2: GetTournamentChips")
 		ws.Close()
 		return
 	}
 
 	if chips <= 0 {
+		log.Print("RoomJoinAnyTournamentV2: no tournament chips")
 		ws.Close()
 		return
 	}
