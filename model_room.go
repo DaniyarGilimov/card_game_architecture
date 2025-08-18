@@ -46,13 +46,12 @@ type Service interface {
 	SendDelete(message string)
 	GetRoomOptions() (*model.RoomOptions, error)
 
-	// GetMessages() ([]*model.SingleMessage, error)
-	// IncrementChips(id int, chips int64) (int64, error)
 	gamemodel.Service
 }
 
 type Repo interface {
 	GetUserByID(userID int) (*model.User, error) // TODO: After creating module with api models
+	GetTournamentChips(userID, tournamentID int) (int64, error)
 }
 
 // Room is a room
