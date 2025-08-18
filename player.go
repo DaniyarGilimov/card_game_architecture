@@ -71,10 +71,6 @@ func GetTableID(order []int, relPlayer *gamemodel.Player, place, roomSize int) (
 
 // NewPlayerConn used to create player connection
 func NewPlayerConn(user *model.User, ws *websocket.Conn, room *Room) *PlayerConn { //CheckedFunction
-	inventory, err := room.Service.GetUserInventory(user.UserID)
-	if err != nil {
-		return nil
-	}
 
 	pc := &PlayerConn{
 		WS: ws,
@@ -83,7 +79,7 @@ func NewPlayerConn(user *model.User, ws *websocket.Conn, room *Room) *PlayerConn
 			PushToken:   user.PushToken,
 			Name:        user.Username,
 			PlayerID:    user.UserID,
-			Inventory:   inventory,
+			Inventory:   user.Inventory,
 			RuntimeData: &gamemodel.PlayerRuntimeData{},
 		},
 		Token:        user.Token,

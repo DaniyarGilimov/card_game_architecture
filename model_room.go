@@ -42,7 +42,6 @@ type Service interface {
 	ParseToken(accessToken string) (int, error)
 	GetUserByToken(token string) (*model.User, error)
 	GetAnyInitialBet(userChips, ltBet int64) (int64, int64, error)
-	GetUserInventory(userId int) (*model.PersonInventory, error)
 	SendDelete(message string)
 	GetRoomOptions() (*model.RoomOptions, error)
 

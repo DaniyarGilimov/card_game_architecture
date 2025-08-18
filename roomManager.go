@@ -447,6 +447,19 @@ func RoomJoinAnyTournamentV2(playerToken string, request *RequestJoinRoom, ws *w
 		return
 	}
 
+	chips, err := rManager.Repo.GetTournamentChips(user.UserID, request.TournamentID)
+	if err != nil {
+		ws.Close()
+		return
+	}
+
+	if chips <= 0 {
+		ws.Close()
+		return
+	}
+
+	user.Inventory.Chips = chips
+
 	if TryMarkJoining(user.UserID, rManager) {
 		logrus.Warnf("Player %d is already attempting to join a room.", user.UserID)
 		ws.Close()
