@@ -33,8 +33,6 @@ func NewPlayer(token string, rManager *RoomManager, tournamentID int) (*gamemode
 		PlayerID:  userResult.UserID,
 	} //The playerId will be taken from mongodb
 
-	// TODO: need add tournament stuff
-
 	return player, nil
 }
 
