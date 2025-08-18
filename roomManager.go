@@ -499,7 +499,7 @@ Restart:
 			if err.Error() == "bad request | no other options create room with bots" {
 				ltBet = 0
 				if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
-					request.RoomInfo.InitialBet = bet
+					initialBet = bet
 					goto Found
 				}
 			}
