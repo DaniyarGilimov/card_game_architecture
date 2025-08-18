@@ -29,16 +29,6 @@ const ( // RefresherTime Searcher timer for refresh
 	PongWait = 40 * time.Second
 )
 
-func WritePlayingInfo(rManager *RoomManager) {
-	res, err := instPlayingInfo(rManager)
-	if err != nil {
-		log.Print(err.Error())
-		return
-	}
-
-	rManager.Repo.WriteInfo("playInfo", res)
-}
-
 // SearcherRefresher used to refresh all searchers timely
 func SearcherRefresher(rManager *RoomManager) {
 	m := make(map[int64][]byte)

@@ -52,7 +52,6 @@ type Service interface {
 }
 
 type Repo interface {
-	WriteInfo(messageType, message string) error
 	GetUserByID(userID int) (*model.User, error) // TODO: After creating module with api models
 }
 
