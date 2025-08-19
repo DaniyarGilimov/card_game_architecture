@@ -144,17 +144,12 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room) {
 			}
 
 			switch si.Status {
-			// case "PLAYER_LEAVE":
-			// 	cleanupConnection(pc, r)
+			case "PLAYER_LEAVE":
+				cleanupConnection(pc, r)
 
-			// 	// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
-			// 	instruction := instPlayerLeft(pc.Player.PlayerID)
-			// 	select {
-			// 	case r.BroadcastChannel <- instruction:
-			// 	case <-r.Ctx.Done():
-			// 	case <-time.After(2 * time.Second):
-			// 	}
-			// 	return
+				// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
+
+				return
 			case "UTIL_MESSAGE", "UTIL_THROW":
 				select {
 				case r.BroadcastChannel <- message:
@@ -177,13 +172,6 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 	defer func() {
 		ticker.Stop()
 		cleanupConnection(pc, r)
-
-		instruction := instPlayerLeft(pc.Player.PlayerID)
-		select {
-		case r.BroadcastChannel <- instruction:
-		case <-r.Ctx.Done():
-		case <-time.After(2 * time.Second):
-		}
 	}()
 
 	for {
@@ -277,13 +265,6 @@ func cleanupConnection(pc *PlayerConn, room *Room) {
 		}
 		// log.Printf("cleanupConnection: Closed channel for player %d", pc.Player.PlayerID)
 	})
-}
-
-func instPlayerLeft(PlayerID int) []byte {
-	pli := gamemodel.PlayerLeftInstruction{Instruction: "PLAYER_LEAVE"}
-	pli.Data.ID = PlayerID
-	b, _ := json.Marshal(pli)
-	return b
 }
 
 func writeClose(pc *PlayerConn, code int, reason string) {
