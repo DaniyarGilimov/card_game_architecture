@@ -367,7 +367,7 @@ Restart:
 	for {
 		if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
 			for _, r := range rManager.AllRooms {
-				if r.RoomInfo.InitialBet == bet {
+				if r.RoomInfo.InitialBet == bet && r.RoomInfo.TournamentID == 0 {
 					r.PlayerConnsLock.RLock()
 					roomCount := len(r.PlayerConns)
 					r.PlayerConnsLock.RUnlock()
