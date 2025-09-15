@@ -64,7 +64,7 @@ func NewRoom(rManager *RoomManager, ri *gamemodel.RoomInfo, ctx context.Context,
 
 func Run(r *Room, rManager *RoomManager) error {
 	go r.Game.RunGameListener()
-	go handleBroadcasts(r)
+	go handleBroadcasts(r, rManager)
 
 	for {
 		select {
@@ -95,7 +95,7 @@ func Run(r *Room, rManager *RoomManager) error {
 }
 
 // handleBroadcasts
-func handleBroadcasts(r *Room) {
+func handleBroadcasts(r *Room, roomManager *RoomManager) {
 	for {
 		select {
 		case userIdAndMsgUnicast, ok := <-r.UnicastChannel:
@@ -117,7 +117,7 @@ func handleBroadcasts(r *Room) {
 
 			for _, pc := range playersToBroadcast {
 				if pc.Player.PlayerID == userIdAndMsgUnicast.UserID {
-					go SendState(userIdAndMsgUnicast.Byte, pc)
+					go SendState(userIdAndMsgUnicast.Byte, pc, playersToBroadcast, r, roomManager)
 					break
 				}
 			}
@@ -159,7 +159,7 @@ func handleBroadcasts(r *Room) {
 				// The existing SendState in socket/game_backbone/player.go uses a buffered channel
 				// and has a recover, which is good.
 				if needToSendState {
-					go SendState(userIdAndMsgExcept.Byte, pc) // Send in a goroutine to prevent one slow player blocking others.
+					go SendState(userIdAndMsgExcept.Byte, pc, playersToBroadcast, r, roomManager) // Send in a goroutine to prevent one slow player blocking others.
 				}
 			}
 		case msg, ok := <-r.BroadcastChannel:
@@ -195,7 +195,7 @@ func handleBroadcasts(r *Room) {
 				// The existing SendState in socket/game_backbone/player.go uses a buffered channel
 				// and has a recover, which is good.
 				if needToSendState {
-					go SendState(msg, pc) // Send in a goroutine to prevent one slow player blocking others.
+					go SendState(msg, pc, playersToBroadcast, r, roomManager) // Send in a goroutine to prevent one slow player blocking others.
 				}
 			}
 		case <-r.Ctx.Done():
@@ -222,7 +222,7 @@ func Join(ctx context.Context, r *Room, playerConn *PlayerConn, rManager *RoomMa
 func handleJoin(r *Room, rManager *RoomManager, c *PlayerConn) {
 	// PlayerConnectionHandler will start PlayerWriter.
 	// If it's a bot, PlayerConnectionHandler returns early after starting PlayerWriter.
-	go PlayerConnectionHandler(c, r)
+	go PlayerConnectionHandler(c, r, rManager)
 
 	// TODO: handle bot AI initialization
 	if c.BotAI != nil {

@@ -210,7 +210,9 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			sc.Mu.Unlock()
 			res := InstGetCertainListRoom(sc.State.InitialBet, roomManager)
 			go SendStateSearcher(sc, res)
-		case "search_rooms":
+			go roomManager.Services.CreateSearcherLog(sc.UserID, res)
+
+		case "search_rooms": //only in fivecard, for ios, but depricated already
 			sc.Mu.Lock()
 			sc.State.Name = SearchingCertainState
 			sc.State.InitialBet = si.Data.MinBet
@@ -224,7 +226,8 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			sc.Mu.Unlock()
 			res := InstSendAllListRoom(roomManager, sc.Chips)
 			go SendStateSearcher(sc, res)
-		case "search_places":
+			go roomManager.Services.CreateSearcherLog(sc.UserID, res)
+		case "search_places": //only in fivecard, for ios, but depricated already
 			sc.Mu.Lock()
 			sc.State.Name = SearchingAllState
 			sc.Mu.Unlock()
