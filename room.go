@@ -185,7 +185,7 @@ func handleBroadcasts(r *Room, roomManager *RoomManager) {
 			for _, pc := range playersToBroadcast {
 				needToSendState := false
 				for _, player := range playersInGame {
-					if player.PlayerID == pc.Player.PlayerID {
+					if player != nil && player.PlayerID == pc.Player.PlayerID {
 						needToSendState = true
 						break
 					}

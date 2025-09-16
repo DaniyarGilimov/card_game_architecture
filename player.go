@@ -152,7 +152,9 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 
 				playerIds := make([]int, 0, len(playersInGame))
 				for _, p := range playersInGame {
-					playerIds = append(playerIds, p.PlayerID)
+					if p != nil {
+						playerIds = append(playerIds, p.PlayerID)
+					}
 				}
 
 				go roomManager.Services.CreatePlayerSentLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, message, r.ID, r.RoomInfo.TournamentID, playerIds)
@@ -175,7 +177,9 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 
 					playerIds := make([]int, 0, len(playersInGame))
 					for _, p := range playersInGame {
-						playerIds = append(playerIds, p.PlayerID)
+						if p != nil {
+							playerIds = append(playerIds, p.PlayerID)
+						}
 					}
 
 					go roomManager.Services.CreatePlayerSentLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, message, r.ID, r.RoomInfo.TournamentID, playerIds)
