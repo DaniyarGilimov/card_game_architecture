@@ -276,11 +276,21 @@ func cleanupConnection(pc *PlayerConn, room *Room) {
 
 		// Attempt to send the player to the room's leave channel.
 		// Use a timeout to prevent blocking indefinitely if the room is not processing leave events.
+		// Check if room context is done first to avoid sending on closed channels.
 		select {
-		case room.Leave <- pc:
-			// log.Printf("cleanupConnection: Sent player %d to room.Leave", pc.Player.PlayerID)
-		case <-time.After(2 * time.Second): // Consider making this timeout configurable or part of utils
-			// log.Printf("cleanupConnection: Timeout sending player %d to room.Leave", pc.Player.PlayerID)
+		case <-room.Ctx.Done():
+			// Room is shutting down, don't attempt to send on potentially closed channels
+			// log.Printf("cleanupConnection: Room context done, skipping Leave channel for player %d", pc.Player.PlayerID)
+		default:
+			select {
+			case room.Leave <- pc:
+				// log.Printf("cleanupConnection: Sent player %d to room.Leave", pc.Player.PlayerID)
+			case <-room.Ctx.Done():
+				// Room shut down while waiting to send
+				// log.Printf("cleanupConnection: Room context done during send for player %d", pc.Player.PlayerID)
+			case <-time.After(2 * time.Second): // Consider making this timeout configurable or part of utils
+				// log.Printf("cleanupConnection: Timeout sending player %d to room.Leave", pc.Player.PlayerID)
+			}
 		}
 
 		close(pc.Ch) // Close the player's outbound message channel. This signals the PlayerWriter to stop.
