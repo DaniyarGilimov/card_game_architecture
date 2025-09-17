@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	gamemodel "github.com/daniyargilimov/card_game_model"
 
@@ -140,6 +141,21 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 	case "join_any":
 		RoomJoinAny(request.PlayerToken, ws, h.roomManager)
 	}
+}
+
+func (h *GameHandler) TournamentEndHandler(w http.ResponseWriter, r *http.Request) {
+	log.Print("tournament end handler")
+	tournament_id := strings.TrimPrefix(r.URL.Path, "/tournament_end/")
+	log.Print("tournament id is ", tournament_id)
+	if tournament_id != "" {
+		tournamentID, err := strconv.Atoi(tournament_id)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		TournamentEnd(h.roomManager, tournamentID)
+	}
+	w.Write([]byte("OK"))
 }
 
 // ParseRequest

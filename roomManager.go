@@ -582,3 +582,16 @@ func InstRoomIsFull() []byte {
 	b, _ := json.Marshal(inst)
 	return b
 }
+
+func TournamentEnd(rManager *RoomManager, tournamentID int) {
+
+	rManager.RoomsLock.RLock()
+	for _, r := range rManager.AllRooms {
+		if r.RoomInfo.TournamentID == tournamentID {
+			log.Print("terminating room with tournament id: ", tournamentID, " room id: ", r.RoomInfo.Name)
+			r.ContextCancel()
+		}
+	}
+
+	rManager.RoomsLock.RUnlock()
+}
