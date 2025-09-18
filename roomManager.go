@@ -241,7 +241,9 @@ func RoomCreate(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomMana
 
 	go func() {
 		if err := Run(fRoom, rManager); err != nil {
-			log.Print("Closing room with err: " + err.Error())
+			if err.Error() != "context canceled" {
+				log.Print("Closing room with err: " + err.Error())
+			}
 		}
 
 		RoomDelete(fRoom, rManager)
@@ -380,7 +382,7 @@ Restart:
 				}
 			}
 			ltBet = bet
-			log.Printf("switching to lower bet %d", ltBet)
+
 		} else { //need to take some actions
 			if err.Error() == "bad request | no other options create room with bots" {
 				ltBet = 0
@@ -410,7 +412,9 @@ Found:
 
 		go func() {
 			if err := Run(fRoom, rManager); err != nil {
-				log.Print("Closing room with err: " + err.Error())
+				if err.Error() != "context canceled" {
+					log.Print("Closing room with err: " + err.Error())
+				}
 			}
 
 			RoomDelete(fRoom, rManager)
@@ -524,7 +528,9 @@ Found:
 
 		go func() {
 			if err := Run(fRoom, rManager); err != nil {
-				log.Print("Closing room with err: " + err.Error())
+				if err.Error() != "context canceled" {
+					log.Print("Closing room with err: " + err.Error())
+				}
 			}
 
 			RoomDelete(fRoom, rManager)
