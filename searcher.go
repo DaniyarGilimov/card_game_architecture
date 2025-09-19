@@ -363,6 +363,8 @@ func instPlayingInfo(rManager *RoomManager) (string, error) {
 
 // InstSendAllListRoom used to get list of rooms in bytes
 func InstSendAllListRoom(rManager *RoomManager, chips int64) []byte {
+	log.Print("InstSendAllListRoom called with chips ", chips)
+
 	m := make(map[int64]int)
 
 	roomOptions, err := rManager.Services.GetRoomOptions()
@@ -408,5 +410,6 @@ func InstSendAllListRoom(rManager *RoomManager, chips int64) []byte {
 		logrus.Error("Cannot parse to allRooms to json format")
 	}
 
+	log.Print("InstSendAllListRoom generated msg: \n", string(msg))
 	return msg
 }
