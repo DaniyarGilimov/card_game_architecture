@@ -147,17 +147,19 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 			case "PLAYER_LEAVE":
 				cleanupConnection(pc, r)
 
-				playersInGame := make([]*gamemodel.Player, len(r.Game.GetPlayers()))
-				copy(playersInGame, r.Game.GetPlayers())
+				if pc.BotAI == nil {
+					playersInGame := make([]*gamemodel.Player, len(r.Game.GetPlayers()))
+					copy(playersInGame, r.Game.GetPlayers())
 
-				playerIds := make([]int, 0, len(playersInGame))
-				for _, p := range playersInGame {
-					if p != nil {
-						playerIds = append(playerIds, p.PlayerID)
+					playerIds := make([]int, 0, len(playersInGame))
+					for _, p := range playersInGame {
+						if p != nil {
+							playerIds = append(playerIds, p.PlayerID)
+						}
 					}
-				}
 
-				go roomManager.Services.CreatePlayerSentLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, message, r.ID, r.RoomInfo.TournamentID, playerIds)
+					go roomManager.Services.CreatePlayerSentLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, message, r.ID, r.RoomInfo.TournamentID, playerIds)
+				}
 				// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
 
 				return
@@ -172,18 +174,21 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 				if !ok {
 					// TODO: game can be dead
 				} else {
-					playersInGame := make([]*gamemodel.Player, len(r.Game.GetPlayers()))
-					copy(playersInGame, r.Game.GetPlayers())
 
-					playerIds := make([]int, 0, len(playersInGame))
-					for _, p := range playersInGame {
-						if p != nil {
-							playerIds = append(playerIds, p.PlayerID)
+					if pc.BotAI == nil {
+						playersInGame := make([]*gamemodel.Player, len(r.Game.GetPlayers()))
+						copy(playersInGame, r.Game.GetPlayers())
+
+						playerIds := make([]int, 0, len(playersInGame))
+						for _, p := range playersInGame {
+							if p != nil {
+								playerIds = append(playerIds, p.PlayerID)
+							}
 						}
-					}
 
-					go roomManager.Services.CreatePlayerSentLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, message, r.ID, r.RoomInfo.TournamentID, playerIds)
-					// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
+						go roomManager.Services.CreatePlayerSentLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, message, r.ID, r.RoomInfo.TournamentID, playerIds)
+						// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
+					}
 				}
 			}
 		}
@@ -310,12 +315,15 @@ func writeClose(pc *PlayerConn, code int, reason string) {
 func SendState(b []byte, pc *PlayerConn, allPlayers []*PlayerConn, room *Room, roomManager *RoomManager) {
 	defer func() {
 		if r := recover(); r == nil { //This used to solve closed channel issue
-			playerIds := make([]int, 0, len(allPlayers))
-			for _, p := range allPlayers {
-				playerIds = append(playerIds, p.Player.PlayerID)
-			}
+			if pc.BotAI == nil {
 
-			go roomManager.Services.CreatePlayerLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, b, room.ID, room.RoomInfo.TournamentID, playerIds)
+				playerIds := make([]int, 0, len(allPlayers))
+				for _, p := range allPlayers {
+					playerIds = append(playerIds, p.Player.PlayerID)
+				}
+
+				go roomManager.Services.CreatePlayerLog(pc.Player.PlayerID, pc.Player.Inventory.Chips, b, room.ID, room.RoomInfo.TournamentID, playerIds)
+			}
 		}
 	}()
 
