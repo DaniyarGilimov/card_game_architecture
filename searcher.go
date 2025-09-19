@@ -226,7 +226,7 @@ func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 			sc.Mu.Unlock()
 			res := InstSendAllListRoom(roomManager, sc.Chips)
 			go SendStateSearcher(sc, res)
-			go roomManager.Services.CreateSearcherLog(sc.UserID, res)
+			// go roomManager.Services.CreateSearcherLog(sc.UserID, res)
 		case "search_places": //only in fivecard, for ios, but depricated already
 			sc.Mu.Lock()
 			sc.State.Name = SearchingAllState
