@@ -212,7 +212,6 @@ func RoomCreate(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomMana
 		ws.Close()
 		return
 	}
-	log.Print("RoomCreate: with initial bet: ", request.RoomInfo.InitialBet)
 
 	if TryMarkJoining(user.UserID, rManager) {
 		logrus.Warnf("Player %d is already attempting to join a room.", user.UserID)
