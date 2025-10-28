@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"sync"
 	"time"
 
@@ -20,6 +19,7 @@ var botIDMutex sync.Mutex // Mutex for botIDCounter
 type BotProvider interface {
 	NewBot() gamemodel.BotAI
 	GetBotName(botID int) string
+	GetBotAvatarURL(botID int) string
 }
 
 // CreateAndPopulateRoomWithBots creates a new room and populates it with a specified number of bots.
@@ -117,8 +117,9 @@ func NewBotPlayer(rManager *RoomManager, namePrefix string, initialChips int64) 
 			ActiveAvatarID: -1,
 			Avatars: []*model.StaticInventory{
 				{
-					ID:    -1,
-					Image: "https://api.dicebear.com/7.x/personas/png?seed=" + strconv.Itoa(playerID),
+					ID: -1,
+					// Image: "https://api.dicebear.com/7.x/personas/png?seed=" + strconv.Itoa(playerID),
+					Image: rManager.BotProvider.GetBotAvatarURL(-playerID),
 				},
 			},
 			Level: model.PersonLevel{},
