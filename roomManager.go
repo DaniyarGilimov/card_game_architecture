@@ -37,6 +37,9 @@ func NewRoomManager(NewGame gamemodel.GameFactory, BotProvider BotProvider, serv
 		JoiningPlayersMutex:   sync.RWMutex{},
 		PlayersAttemptingJoin: make(map[int]bool),
 
+		UserVisitedRooms:     make(map[int]map[int]bool),
+		UserVisitedRoomsLock: sync.RWMutex{},
+
 		MutexLock:   sync.RWMutex{},
 		MutexLocked: map[string]string{},
 		NewGame:     NewGame,
@@ -81,6 +84,54 @@ func RoomStalker(rManager *RoomManager) {
 	}
 }
 
+// UserVisitedRoomsCleanup periodically removes inactive users from the visited rooms tracking
+func UserVisitedRoomsCleanup(rManager *RoomManager) {
+	ticker := time.NewTicker(20 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		rManager.UserVisitedRoomsLock.Lock()
+
+		// Build a set of currently active user IDs
+		activeUsers := make(map[int]bool)
+
+		rManager.RoomsLock.RLock()
+		for _, room := range rManager.AllRooms {
+			room.PlayerConnsLock.RLock()
+			for _, pc := range room.PlayerConns {
+				if pc.Player != nil {
+					activeUsers[pc.Player.PlayerID] = true
+				}
+			}
+			room.PlayerConnsLock.RUnlock()
+		}
+		rManager.RoomsLock.RUnlock()
+
+		rManager.CloseRoomsLock.RLock()
+		for _, room := range rManager.AllCloseRooms {
+			room.PlayerConnsLock.RLock()
+			for _, pc := range room.PlayerConns {
+				if pc.Player != nil {
+					activeUsers[pc.Player.PlayerID] = true
+				}
+			}
+			room.PlayerConnsLock.RUnlock()
+		}
+		rManager.CloseRoomsLock.RUnlock()
+
+		// Remove inactive users from visited rooms tracking
+		for userID := range rManager.UserVisitedRooms {
+			if !activeUsers[userID] {
+				delete(rManager.UserVisitedRooms, userID)
+			}
+		}
+
+		rManager.UserVisitedRoomsLock.Unlock()
+
+		logrus.Debugf("UserVisitedRooms cleanup: %d active users tracked", len(activeUsers))
+	}
+}
+
 // TryMarkJoining attempts to mark a player as "in the process of joining".
 // It returns true if successful (player was not already marked and is now marked),
 // false otherwise (player is already in the process).
@@ -102,6 +153,111 @@ func ClearJoiningMark(playerID int, rm *RoomManager) {
 	defer rm.JoiningPlayersMutex.Unlock()
 
 	delete(rm.PlayersAttemptingJoin, playerID)
+}
+
+// MarkRoomAsVisited marks a room as visited by a user
+func MarkRoomAsVisited(userID int, roomID int, rm *RoomManager) {
+	rm.UserVisitedRoomsLock.Lock()
+	defer rm.UserVisitedRoomsLock.Unlock()
+
+	if rm.UserVisitedRooms[userID] == nil {
+		rm.UserVisitedRooms[userID] = make(map[int]bool)
+	}
+	rm.UserVisitedRooms[userID][roomID] = true
+}
+
+// HasUserVisitedRoom checks if a user has visited a specific room
+func HasUserVisitedRoom(userID int, roomID int, rm *RoomManager) bool {
+	rm.UserVisitedRoomsLock.RLock()
+	defer rm.UserVisitedRoomsLock.RUnlock()
+
+	if rm.UserVisitedRooms[userID] == nil {
+		return false
+	}
+	return rm.UserVisitedRooms[userID][roomID]
+}
+
+// ResetUserVisitedRooms resets the visited rooms for a user
+func ResetUserVisitedRooms(userID int, rm *RoomManager) {
+	rm.UserVisitedRoomsLock.Lock()
+	defer rm.UserVisitedRoomsLock.Unlock()
+
+	delete(rm.UserVisitedRooms, userID)
+}
+
+// CountAvailableUnvisitedRooms counts how many unvisited rooms are available for a user
+func CountAvailableUnvisitedRooms(userID int, userChips int64, rm *RoomManager) int {
+	rm.UserVisitedRoomsLock.RLock()
+	visitedRooms := rm.UserVisitedRooms[userID]
+	rm.UserVisitedRoomsLock.RUnlock()
+
+	count := 0
+	rm.RoomsLock.RLock()
+	defer rm.RoomsLock.RUnlock()
+
+	ltBet := int64(0)
+
+	for {
+		bet, _, err := rm.Services.GetAnyInitialBet(userChips, ltBet)
+		if err != nil {
+			break
+		}
+
+		for _, r := range rm.AllRooms {
+			if r.RoomInfo.InitialBet != bet {
+				continue
+			}
+			if r.RoomInfo.TournamentID != 0 {
+				continue
+			}
+
+			r.PlayerConnsLock.RLock()
+			roomCount := len(r.PlayerConns)
+			r.PlayerConnsLock.RUnlock()
+			if roomCount >= r.RoomInfo.RoomSize {
+				continue
+			}
+
+			if visitedRooms == nil || !visitedRooms[r.ID] {
+				count++
+			}
+		}
+
+		ltBet = bet
+	}
+
+	return count
+}
+
+// CleanupStaleVisitedRooms removes references to deleted rooms from a user's visited list
+func CleanupStaleVisitedRooms(userID int, rm *RoomManager) {
+	rm.UserVisitedRoomsLock.Lock()
+	defer rm.UserVisitedRoomsLock.Unlock()
+
+	visitedRooms := rm.UserVisitedRooms[userID]
+	if visitedRooms == nil {
+		return
+	}
+
+	// Build a set of current room IDs
+	rm.RoomsLock.RLock()
+	currentRooms := make(map[int]bool)
+	for roomID := range rm.AllRooms {
+		currentRooms[roomID] = true
+	}
+	rm.RoomsLock.RUnlock()
+
+	// Remove any visited rooms that no longer exist
+	for roomID := range visitedRooms {
+		if !currentRooms[roomID] {
+			delete(visitedRooms, roomID)
+		}
+	}
+
+	// If no visited rooms remain, clean up the user entry entirely
+	if len(visitedRooms) == 0 {
+		delete(rm.UserVisitedRooms, userID)
+	}
 }
 
 func AlreadyPlaying(playerToken string, rManager *RoomManager) error {
@@ -360,6 +516,16 @@ Restart:
 		return
 	}
 
+	// Clean up any stale room references before checking
+	CleanupStaleVisitedRooms(user.UserID, rManager)
+
+	// Check if user has visited all available rooms, reset if necessary
+	unvisitedCount := CountAvailableUnvisitedRooms(user.UserID, user.Inventory.Chips, rManager)
+	if unvisitedCount == 0 {
+		ResetUserVisitedRooms(user.UserID, rManager)
+		logrus.Infof("Player %d has visited all available rooms. Resetting cycle.", user.UserID)
+	}
+
 	var fRoom *Room
 	rManager.RoomsLock.RLock()
 	ltBet := int64(0)
@@ -369,6 +535,11 @@ Restart:
 		if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
 			for _, r := range rManager.AllRooms {
 				if r.RoomInfo.InitialBet == bet && r.RoomInfo.TournamentID == 0 {
+					// Skip if user has already visited this room
+					if HasUserVisitedRoom(user.UserID, r.ID, rManager) {
+						continue
+					}
+
 					r.PlayerConnsLock.RLock()
 					roomCount := len(r.PlayerConns)
 					r.PlayerConnsLock.RUnlock()
@@ -433,6 +604,9 @@ Found:
 	if fRoom.RoomInfo.RoomSize <= roomCount {
 		goto Restart
 	}
+
+	// Mark this room as visited by the user
+	MarkRoomAsVisited(user.UserID, fRoom.ID, rManager)
 
 	playerConn := NewPlayerConn(user, ws, fRoom)
 

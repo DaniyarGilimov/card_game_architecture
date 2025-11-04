@@ -28,6 +28,10 @@ type RoomManager struct {
 	JoiningPlayersMutex   sync.RWMutex
 	PlayersAttemptingJoin map[int]bool
 
+	// Round-robin room tracking
+	UserVisitedRooms     map[int]map[int]bool // userID -> roomID -> visited
+	UserVisitedRoomsLock sync.RWMutex
+
 	// Testing Purpose
 	MutexLock         sync.RWMutex
 	MutexLocked       map[string]string
