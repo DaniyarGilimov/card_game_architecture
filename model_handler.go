@@ -79,7 +79,13 @@ func (resp *RequestJoinRoomV3) ParseRequest(r *http.Request) error {
 		if len(params["defined"]) > 0 {
 			resp.RoomInfo.DefinedCards = true
 		}
-
+	case "join_tournament_with_bots":
+		tournamentID, err1 := strconv.Atoi(params["tournament_id"][0])
+		if err1 == nil {
+			resp.RoomInfo.TournamentID = tournamentID
+		} else {
+			return errors.New("parse error")
+		}
 	}
 
 	return nil

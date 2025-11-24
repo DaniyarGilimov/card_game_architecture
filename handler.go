@@ -140,6 +140,8 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 		RoomJoinByID(request.PlayerToken, request.RoomID, ws, h.roomManager)
 	case "join_any":
 		RoomJoinAny(request.PlayerToken, ws, h.roomManager)
+	case "join_tournament_with_bots":
+		RoomJoinAnyTournamentWithBots(request.PlayerToken, request.RoomInfo.TournamentID, ws, h.roomManager)
 	}
 }
 

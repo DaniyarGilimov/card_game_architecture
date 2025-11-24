@@ -23,16 +23,17 @@ type BotProvider interface {
 }
 
 // CreateAndPopulateRoomWithBots creates a new room and populates it with a specified number of bots.
-func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, roomNamePrefix string, isPublic bool, numBotsToCreate int, roomSize int) (*Room, error) {
+func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, roomNamePrefix string, isPublic bool, numBotsToCreate int, roomSize int, tournamentId int) (*Room, error) {
 	if numBotsToCreate <= 0 || numBotsToCreate > roomSize {
 		return nil, fmt.Errorf("invalid number of bots to create: %d (must be > 0 and <= roomSize %d)", numBotsToCreate, roomSize)
 	}
 
 	// 1. Construct RoomInfo
 	ri := &gamemodel.RoomInfo{
-		InitialBet: initialBet,
-		IsOpen:     isPublic,
-		RoomSize:   roomSize,
+		InitialBet:   initialBet,
+		IsOpen:       isPublic,
+		RoomSize:     roomSize,
+		TournamentID: tournamentId,
 		// Name:       fmt.Sprintf("%s (Bet: %d)", roomNamePrefix, initialBet),
 	}
 

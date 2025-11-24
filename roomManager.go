@@ -733,6 +733,103 @@ Found:
 	Join(ctx, fRoom, playerConn, rManager)
 }
 
+func RoomJoinAnyTournamentWithBots(playerToken string, tournamentID int, ws *websocket.Conn, rManager *RoomManager) {
+	user, err := rManager.Services.GetUserByToken(playerToken)
+	if err != nil {
+		log.Print("RoomJoinAnyTournamentV2: token")
+		ws.Close()
+		return
+	}
+
+	chips, err := rManager.Repo.GetTournamentChips(user.UserID, tournamentID)
+	if err != nil {
+		log.Print("RoomJoinAnyTournamentV2: GetTournamentChips")
+		ws.Close()
+		return
+	}
+
+	if chips <= 0 {
+		log.Print("RoomJoinAnyTournamentV2: no tournament chips")
+		ws.Close()
+		return
+	}
+
+	user.Inventory.Chips = chips
+
+	if TryMarkJoining(user.UserID, rManager) {
+		logrus.Warnf("Player %d is already attempting to join a room.", user.UserID)
+		ws.Close()
+		return
+	}
+	defer ClearJoiningMark(user.UserID, rManager)
+
+Restart:
+	if err := AlreadyPlaying(playerToken, rManager); err != nil {
+		ws.Close()
+		return
+	}
+
+	var fRoom *Room
+	rManager.RoomsLock.RLock()
+	ltBet := int64(0)
+	initialBet := int64(0)
+
+	for {
+		if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
+			for _, r := range rManager.AllRooms {
+				if r.RoomInfo.InitialBet == bet && r.RoomInfo.TournamentID == tournamentID {
+					r.PlayerConnsLock.RLock()
+					roomCount := len(r.PlayerConns)
+					r.PlayerConnsLock.RUnlock()
+					if roomCount < 6 {
+						fRoom = r
+						goto Found
+					}
+				}
+			}
+			ltBet = bet
+		} else { //need to take some actions
+			if err.Error() == "bad request | no other options create room with bots" {
+				ltBet = 0
+				if bet, _, err := rManager.Services.GetAnyInitialBet(user.Inventory.Chips, ltBet); err == nil {
+					initialBet = bet
+					goto Found
+				}
+			}
+
+			rManager.RoomsLock.RUnlock()
+			return
+		}
+	}
+Found:
+
+	rManager.RoomsLock.RUnlock()
+	if fRoom == nil { // create new room if possible with bots
+		fRoom, err = CreateAndPopulateRoomWithBots(rManager, initialBet, "", true, 3, 6, tournamentID)
+		if err != nil {
+			log.Print("RoomJoinAnyTournamentV2: CreateAndPopulateRoomWithBots")
+			ws.Close()
+			return
+		}
+	}
+
+	fRoom.PlayerConnsLock.RLock()
+	roomCount := len(fRoom.PlayerConns)
+	fRoom.PlayerConnsLock.RUnlock()
+
+	if fRoom.RoomInfo.RoomSize <= roomCount {
+		goto Restart
+	}
+
+	playerConn := NewPlayerConn(user, ws, fRoom)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+	defer cancel()
+
+	Join(ctx, fRoom, playerConn, rManager)
+}
+
 func roomAssignPassword(rManager *RoomManager) string {
 Restart:
 

@@ -294,7 +294,7 @@ func cleanupConnection(pc *PlayerConn, room *Room) {
 				// Room shut down while waiting to send
 				// log.Printf("cleanupConnection: Room context done during send for player %d", pc.Player.PlayerID)
 			case <-time.After(2 * time.Second): // Consider making this timeout configurable or part of utils
-				// log.Printf("cleanupConnection: Timeout sending player %d to room.Leave", pc.Player.PlayerID)
+				log.Printf("cleanupConnection: Timeout sending player %d to room.Leave", pc.Player.PlayerID)
 			}
 		}
 
