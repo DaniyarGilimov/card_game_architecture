@@ -163,7 +163,7 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 				// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
 
 				return
-			case "UTIL_MESSAGE", "UTIL_THROW":
+			case "UTIL_MESSAGE", "UTIL_THROW", "MESSAGE_WITH_ID":
 				select {
 				case r.BroadcastChannel <- message:
 				case <-r.Ctx.Done():
