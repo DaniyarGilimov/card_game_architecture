@@ -34,13 +34,16 @@ type BotConnectionController struct {
 	rManager *RoomManager
 
 	cancelBotTask context.CancelFunc // cancel pending bot add/remove
+
+	targetBotsCount int // Desired number of bots in the room
 }
 
-func NewBotConnectionController(rManager *RoomManager) *BotConnectionController {
+func NewBotConnectionController(targetBotsCount int, rManager *RoomManager) *BotConnectionController {
 	return &BotConnectionController{
-		Leave:    make(chan *PlayerConn),
-		Join:     make(chan *PlayerConn),
-		rManager: rManager,
+		Leave:           make(chan *PlayerConn),
+		Join:            make(chan *PlayerConn),
+		rManager:        rManager,
+		targetBotsCount: targetBotsCount,
 	}
 }
 
@@ -92,7 +95,7 @@ func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Con
 	}
 
 	// Below target (avg should be 4)
-	if count < 4 {
+	if count < bcc.targetBotsCount {
 		bcc.Schedule(roomCtx, random(10, 30), func() {
 			bcc.AddBot(r.RoomInfo.InitialBet, r.ID)
 		})
@@ -100,7 +103,7 @@ func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Con
 	}
 
 	// Above target
-	if count > 4 {
+	if count > bcc.targetBotsCount {
 		bcc.Schedule(roomCtx, random(10, 30), func() {
 			bcc.RemoveBot(roomCtx, r)
 		})
@@ -140,9 +143,9 @@ func (bcc *BotConnectionController) Schedule(roomCtx context.Context, duration t
 }
 
 // CreateAndPopulateRoomWithBots creates a new room and populates it with a specified number of bots.
-func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, roomNamePrefix string, isPublic bool, numBotsToCreate int, roomSize int, tournamentId int) (*Room, error) {
-	if numBotsToCreate <= 0 || numBotsToCreate > roomSize {
-		return nil, fmt.Errorf("invalid number of bots to create: %d (must be > 0 and <= roomSize %d)", numBotsToCreate, roomSize)
+func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, roomNamePrefix string, isPublic bool, initialBotsToCreate int, targetBotsCount int, roomSize int, tournamentId int) (*Room, error) {
+	if initialBotsToCreate <= 0 || initialBotsToCreate > roomSize {
+		return nil, fmt.Errorf("invalid number of bots to create: %d (must be > 0 and <= roomSize %d)", initialBotsToCreate, roomSize)
 	}
 
 	// 1. Construct RoomInfo
@@ -161,7 +164,7 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 	// 2. Create the Room
 	mainContext := context.Background()
 	ctx, cancel := context.WithCancel(mainContext)
-	bcc := NewBotConnectionController(rManager)
+	bcc := NewBotConnectionController(targetBotsCount, rManager)
 
 	fRoom := NewRoom(rManager, ri, bcc, ctx, cancel) // NewRoom uses ri.ID and ri.Name
 
@@ -190,7 +193,7 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 	}(fRoom)
 
 	// 5. Add bots to the room
-	for i := 0; i < numBotsToCreate; i++ {
+	for i := 0; i < initialBotsToCreate; i++ {
 		bcc.AddBot(initialBet, fRoom.ID)
 	}
 	return fRoom, nil

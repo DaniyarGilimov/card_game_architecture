@@ -805,7 +805,7 @@ Found:
 
 	rManager.RoomsLock.RUnlock()
 	if fRoom == nil { // create new room if possible with bots
-		fRoom, err = CreateAndPopulateRoomWithBots(rManager, initialBet, "", true, 3, 6, tournamentID)
+		fRoom, err = CreateAndPopulateRoomWithBots(rManager, initialBet, "", true, 2, 4, 6, tournamentID)
 		if err != nil {
 			log.Print("RoomJoinAnyTournamentV2: CreateAndPopulateRoomWithBots")
 			ws.Close()
