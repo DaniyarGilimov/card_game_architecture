@@ -14,6 +14,8 @@ github.com/cloudwego/iasm v0.2.0 h1:1KNIy1I1H9hNNFEEH3DVnI4UujN+1zjpuk6gwHLTssg=
 github.com/cloudwego/iasm v0.2.0/go.mod h1:8rXZaNYT2n95jn+zTI1sDr+IgcD2GVs0nlbbQPiEFhY=
 github.com/daniyargilimov/card_api_model v0.0.0-20250807130408-c9a60ee50cd7 h1:85W+Zl66+w6T1aGTzjUkBnugRuo3IYcqT53PZdHSxpE=
 github.com/daniyargilimov/card_api_model v0.0.0-20250807130408-c9a60ee50cd7/go.mod h1:INNX9gnqp9PABHPUth5B7mTVBown7pEJyVhBY0w6Y4s=
+github.com/daniyargilimov/card_api_model v0.0.0-20251127100336-dbed652004e9 h1:iezfrWeW0om12iHhIzYmkHc/CBxg7Afg899PTw0W5VM=
+github.com/daniyargilimov/card_api_model v0.0.0-20251127100336-dbed652004e9/go.mod h1:INNX9gnqp9PABHPUth5B7mTVBown7pEJyVhBY0w6Y4s=
 github.com/daniyargilimov/card_game_model v0.0.0-20250808121024-76b9be94628c h1:j1pBs+Gy6gX2T88S4XKBGfRBoDUCJaXzCtaJdgMKsNc=
 github.com/daniyargilimov/card_game_model v0.0.0-20250808121024-76b9be94628c/go.mod h1:HIBdAM7a/iHvbTKLp+8LwIW8RzA1U3dWSlyvFvsPvvI=
 github.com/daniyargilimov/card_game_model v0.1.0 h1:wQL3OK7E3B+PeFW6kS7QfGxQHsCsLmbTsaOgxVMeDPw=
@@ -22,6 +24,8 @@ github.com/daniyargilimov/card_game_model v0.1.1-0.20250811050210-9dd23b409a6f h
 github.com/daniyargilimov/card_game_model v0.1.1-0.20250811050210-9dd23b409a6f/go.mod h1:HIBdAM7a/iHvbTKLp+8LwIW8RzA1U3dWSlyvFvsPvvI=
 github.com/daniyargilimov/card_game_model v0.1.1-0.20250813075226-75955831c7e2 h1:YeQrOIEYuQIh1L42wChZGw7Bx+n4jeLXK7Kufatij6A=
 github.com/daniyargilimov/card_game_model v0.1.1-0.20250813075226-75955831c7e2/go.mod h1:HIBdAM7a/iHvbTKLp+8LwIW8RzA1U3dWSlyvFvsPvvI=
+github.com/daniyargilimov/card_game_model v0.1.1-0.20251203120018-d8bd6b85333b h1:GSGpbZlO4FtYzUlHoQrOlCyVb5R2L0mS7BJt479hfMY=
+github.com/daniyargilimov/card_game_model v0.1.1-0.20251203120018-d8bd6b85333b/go.mod h1:vQnhBIT0ZlFrAyZImE+6dkSCUk+Qzc6J5g9/tLUyEhA=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

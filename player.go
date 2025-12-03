@@ -205,6 +205,8 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 
 	for {
 		select {
+		case <-pc.BotAI.Context().Done():
+			return // bot cancelled itself -> exit writer
 		case message, ok := <-pc.Ch:
 			if !ok {
 				if pc.BotAI != nil {
@@ -230,6 +232,7 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 				var inst gamemodel.PlayerLeftInstruction
 				if err := json.Unmarshal(msgCopy, &inst); err == nil {
 					if inst.Instruction == "UTIL_AFK" || inst.Instruction == "ROOM_MONEY_LESS" || inst.Instruction == "BOT_CONNECTION_CONTROLLER_REMOVE" {
+						pc.BotAI.Shutdown()
 						return // Exit PlayerWriter, defer will call cleanupConnection
 					}
 				}
@@ -263,7 +266,6 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 			if err := pc.WS.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
-
 		case <-r.Ctx.Done():
 			return
 		}
