@@ -229,7 +229,7 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 				// Check if the message is one that should cause the bot to "disconnect" (be removed)
 				var inst gamemodel.PlayerLeftInstruction
 				if err := json.Unmarshal(msgCopy, &inst); err == nil {
-					if inst.Instruction == "UTIL_AFK" || inst.Instruction == "ROOM_MONEY_LESS" {
+					if inst.Instruction == "UTIL_AFK" || inst.Instruction == "ROOM_MONEY_LESS" || inst.Instruction == "BOT_CONNECTION_CONTROLLER_REMOVE" {
 						return // Exit PlayerWriter, defer will call cleanupConnection
 					}
 				}

@@ -2,9 +2,11 @@ package gamearchitecture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -29,17 +31,20 @@ type BotConnectionController struct {
 	// Join when someone joins
 	Join chan *PlayerConn
 
-	// Timer for someone to join, if time exceeds and noone joins then, we join bot
+	rManager *RoomManager
+
+	cancelBotTask context.CancelFunc // cancel pending bot add/remove
 }
 
-func NewBotConnectionController() *BotConnectionController {
+func NewBotConnectionController(rManager *RoomManager) *BotConnectionController {
 	return &BotConnectionController{
-		Leave: make(chan *PlayerConn),
-		Join:  make(chan *PlayerConn),
+		Leave:    make(chan *PlayerConn),
+		Join:     make(chan *PlayerConn),
+		rManager: rManager,
 	}
 }
 
-func (bcc *BotConnectionController) Run(ctx context.Context, r *Room, rManager *RoomManager) error {
+func (bcc *BotConnectionController) Run(roomCtx context.Context, room *Room) error {
 	for {
 		select {
 		case _, ok := <-bcc.Leave:
@@ -47,26 +52,91 @@ func (bcc *BotConnectionController) Run(ctx context.Context, r *Room, rManager *
 				return nil
 			}
 
-		case joinPlayer, ok := <-bcc.Join:
+			bcc.handlePlayersCountChange(roomCtx, room)
+
+		case _, ok := <-bcc.Join:
 			if !ok {
 				return nil
 			}
-			if joinPlayer.BotAI == nil {
-				<-time.After(5 * time.Second)
-				botPlayer := NewBotPlayer(rManager, r.RoomInfo.InitialBet) // Give bots ample chips
-				botAI := rManager.BotProvider.NewBot()
+			bcc.handlePlayersCountChange(roomCtx, room)
 
-				go func(bPlayer *gamemodel.Player, bAI gamemodel.BotAI, rID int, rm *RoomManager) {
-					if err := AddBotToRoom(rID, bPlayer, bAI, rm); err != nil {
-						log.Printf("Bot System: Info - Could not add bot %s to room %d: %v", bPlayer.Name, rID, err)
-					}
-				}(botPlayer, botAI, r.ID, rManager)
-			}
-
-		case <-ctx.Done():
+		case <-roomCtx.Done():
 			return nil
 		}
 	}
+}
+
+func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Context, r *Room) {
+	onlyBotsLeft := true
+	r.PlayerConnsLock.RLock()
+	count := len(r.PlayerConns)
+
+	for _, v := range r.PlayerConns {
+		if v.BotAI == nil {
+			onlyBotsLeft = false
+			break
+		}
+	}
+	r.PlayerConnsLock.RUnlock()
+
+	if onlyBotsLeft {
+		goto removeAllTasks
+	}
+
+	// Priority case: Only 1 player → add bot fast
+	if count == 1 {
+		bcc.Schedule(roomCtx, random(2, 4), func() {
+			bcc.AddBot(r.RoomInfo.InitialBet, r.ID)
+		})
+		return
+	}
+
+	// Below target (avg should be 4)
+	if count < 4 {
+		bcc.Schedule(roomCtx, random(10, 30), func() {
+			bcc.AddBot(r.RoomInfo.InitialBet, r.ID)
+		})
+		return
+	}
+
+	// Above target
+	if count > 4 {
+		bcc.Schedule(roomCtx, random(10, 30), func() {
+			bcc.RemoveBot(roomCtx, r)
+		})
+		return
+	}
+
+removeAllTasks:
+	// Exactly 4 → no tasks needed or onlyBotsLeft
+	if bcc.cancelBotTask != nil {
+		bcc.cancelBotTask()
+		bcc.cancelBotTask = nil
+	}
+}
+
+func random(i1, i2 int) time.Duration {
+	return time.Duration(i1+rand.Intn(i2-i1)) * time.Second
+}
+
+func (bcc *BotConnectionController) Schedule(roomCtx context.Context, duration time.Duration, task func()) {
+	if bcc.cancelBotTask != nil {
+		bcc.cancelBotTask()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	bcc.cancelBotTask = cancel
+
+	go func() {
+		select {
+		case <-time.After(duration):
+			task()
+		case <-ctx.Done():
+			return
+		case <-roomCtx.Done():
+			return
+		}
+	}()
 }
 
 // CreateAndPopulateRoomWithBots creates a new room and populates it with a specified number of bots.
@@ -91,7 +161,7 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 	// 2. Create the Room
 	mainContext := context.Background()
 	ctx, cancel := context.WithCancel(mainContext)
-	bcc := NewBotConnectionController()
+	bcc := NewBotConnectionController(rManager)
 
 	fRoom := NewRoom(rManager, ri, bcc, ctx, cancel) // NewRoom uses ri.ID and ri.Name
 
@@ -121,21 +191,54 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 
 	// 5. Add bots to the room
 	for i := 0; i < numBotsToCreate; i++ {
-		botPlayer := NewBotPlayer(rManager, initialBet) // Give bots ample chips
-		botAI := rManager.BotProvider.NewBot()
-
-		go func(bPlayer *gamemodel.Player, bAI gamemodel.BotAI, rID int, rm *RoomManager) {
-			if err := AddBotToRoom(rID, bPlayer, bAI, rm); err != nil {
-				log.Printf("Bot System: Info - Could not add bot %s to room %d: %v", bPlayer.Name, rID, err)
-			}
-		}(botPlayer, botAI, fRoom.ID, rManager)
+		bcc.AddBot(initialBet, fRoom.ID)
 	}
 	return fRoom, nil
 }
 
+func (bcc *BotConnectionController) AddBot(initialBet int64, rID int) error {
+	botPlayer := bcc.NewBotPlayer(initialBet) // Give bots ample chips
+	botAI := bcc.rManager.BotProvider.NewBot()
+
+	go func(bPlayer *gamemodel.Player, bAI gamemodel.BotAI, rID int, rm *RoomManager) {
+		if err := bcc.AddBotToRoom(rID, bPlayer, bAI); err != nil {
+			log.Printf("Bot System: Info - Could not add bot %s to room %d: %v", bPlayer.Name, rID, err)
+		}
+	}(botPlayer, botAI, rID, bcc.rManager)
+	return nil
+}
+
+func (bcc *BotConnectionController) RemoveBot(roomCtx context.Context, r *Room) {
+	r.PlayerConnsLock.RLock()
+	var botConn *PlayerConn
+	for _, pc := range r.PlayerConns {
+		if pc.BotAI != nil {
+			botConn = pc
+			break
+		}
+	}
+
+	r.PlayerConnsLock.RUnlock()
+
+	if botConn != nil {
+		var inst gamemodel.PlayerLeftInstruction
+		inst.Instruction = "BOT_CONNECTION_CONTROLLER_REMOVE"
+		message, _ := json.Marshal(inst)
+
+		select {
+		case botConn.Ch <- message: // Signal bot to leave
+			return
+		case <-roomCtx.Done():
+			return
+		case <-time.After(2 * time.Second):
+			return
+		}
+	}
+}
+
 // NewBotPlayer creates a new bot player instance.
 // Bot IDs are negative to distinguish them from real players.
-func NewBotPlayer(rManager *RoomManager, initialChips int64) *gamemodel.Player {
+func (bcc *BotConnectionController) NewBotPlayer(initialChips int64) *gamemodel.Player {
 	botIDMutex.Lock()
 	botIDCounter-- // Ensure negative and unique IDs
 	playerID := botIDCounter
@@ -155,7 +258,7 @@ func NewBotPlayer(rManager *RoomManager, initialChips int64) *gamemodel.Player {
 	finalChips := baseChips + variation
 
 	return &gamemodel.Player{
-		Name:     rManager.BotProvider.GetBotName(-playerID),
+		Name:     bcc.rManager.BotProvider.GetBotName(-playerID),
 		PlayerID: playerID,
 		IsBot:    true,
 		Inventory: &model.PersonInventory{ // Assuming model is accessible or define appropriately
@@ -168,7 +271,7 @@ func NewBotPlayer(rManager *RoomManager, initialChips int64) *gamemodel.Player {
 				{
 					ID: -1,
 					// Image: "https://api.dicebear.com/7.x/personas/png?seed=" + strconv.Itoa(playerID),
-					Image: rManager.BotProvider.GetBotAvatarURL(-playerID),
+					Image: bcc.rManager.BotProvider.GetBotAvatarURL(-playerID),
 				},
 			},
 			Level: model.PersonLevel{},
@@ -178,26 +281,26 @@ func NewBotPlayer(rManager *RoomManager, initialChips int64) *gamemodel.Player {
 }
 
 // AddBotToRoom adds a bot with a given AI to a specified room.
-func AddBotToRoom(roomID int, botPlayer *gamemodel.Player, botAI gamemodel.BotAI, rManager *RoomManager) error {
+func (bcc *BotConnectionController) AddBotToRoom(roomID int, botPlayer *gamemodel.Player, botAI gamemodel.BotAI) error {
 	if botPlayer == nil || !botPlayer.IsBot || botAI == nil {
 		return errors.New("invalid bot player or AI")
 	}
 
-	if TryMarkJoining(botPlayer.PlayerID, rManager) {
+	if TryMarkJoining(botPlayer.PlayerID, bcc.rManager) {
 		return errors.New(fmt.Sprintf("bot %d already in join process", botPlayer.PlayerID))
 	}
 
-	defer ClearJoiningMark(botPlayer.PlayerID, rManager)
+	defer ClearJoiningMark(botPlayer.PlayerID, bcc.rManager)
 
 	var fRoom *Room
-	rManager.RoomsLock.RLock()
-	fRoom = rManager.AllRooms[roomID]
-	rManager.RoomsLock.RUnlock()
+	bcc.rManager.RoomsLock.RLock()
+	fRoom = bcc.rManager.AllRooms[roomID]
+	bcc.rManager.RoomsLock.RUnlock()
 
 	if fRoom == nil {
-		rManager.CloseRoomsLock.RLock()
-		fRoom = rManager.AllCloseRooms[roomID]
-		rManager.CloseRoomsLock.RUnlock()
+		bcc.rManager.CloseRoomsLock.RLock()
+		fRoom = bcc.rManager.AllCloseRooms[roomID]
+		bcc.rManager.CloseRoomsLock.RUnlock()
 		if fRoom == nil {
 			return fmt.Errorf("room %d not found for bot %d", roomID, botPlayer.PlayerID)
 		}
@@ -223,7 +326,7 @@ func AddBotToRoom(roomID int, botPlayer *gamemodel.Player, botAI gamemodel.BotAI
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	Join(ctx, fRoom, botConn, rManager)
+	Join(ctx, fRoom, botConn, bcc.rManager)
 
 	return nil
 }

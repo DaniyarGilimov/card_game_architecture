@@ -67,7 +67,7 @@ func Run(r *Room, rManager *RoomManager) error {
 	go r.Game.RunGameListener()
 	go handleBroadcasts(r, rManager)
 	if r.BotConnectionController != nil {
-		go r.BotConnectionController.Run(r.Ctx, r, rManager)
+		go r.BotConnectionController.Run(r.Ctx, r)
 	}
 
 	for {
@@ -84,6 +84,7 @@ func Run(r *Room, rManager *RoomManager) error {
 			}
 			handleJoin(r, rManager, c)
 
+			// Notify bot controller of new join
 			if r.BotConnectionController != nil {
 				r.BotConnectionController.Join <- c
 			}
@@ -92,10 +93,11 @@ func Run(r *Room, rManager *RoomManager) error {
 			if !ok {
 				return nil
 			}
-			if err := handleLeave(r, rManager, leavePlayer); err != nil {
+			if err := handleLeave(r, leavePlayer); err != nil {
 				return err
 			}
 
+			// Notify bot controller of new leave
 			if r.BotConnectionController != nil {
 				r.BotConnectionController.Leave <- leavePlayer
 			}
@@ -246,13 +248,10 @@ func handleJoin(r *Room, rManager *RoomManager, c *PlayerConn) {
 	r.PlayerConns = append(r.PlayerConns, c)
 	r.PlayerConnsLock.Unlock()
 
-	ok := r.Game.SendRoomToGamePlayerJoin(c.Player, r.Ctx)
-	if !ok {
-		// TODO: game can be dead
-	}
+	r.Game.SendRoomToGamePlayerJoin(c.Player, r.Ctx)
 }
 
-func handleLeave(r *Room, rManager *RoomManager, p *PlayerConn) error {
+func handleLeave(r *Room, p *PlayerConn) error {
 	// Removing from playerConns
 	r.PlayerConnsLock.Lock()
 	i := 0
@@ -276,7 +275,5 @@ func handleLeave(r *Room, rManager *RoomManager, p *PlayerConn) error {
 	r.PlayerConnsLock.Unlock()
 
 	r.Game.SendRoomToGamePlayerLeave(p.Player, r.Ctx)
-
-	// TODO: we should check if room need bot to join
 	return nil
 }
