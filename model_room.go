@@ -66,10 +66,11 @@ type Room struct {
 	Ctx           context.Context
 	ContextCancel context.CancelFunc
 
-	ID       int
-	Service  Service
-	RoomInfo *gamemodel.RoomInfo
-	Game     gamemodel.Game
+	ID                      int
+	Service                 Service
+	RoomInfo                *gamemodel.RoomInfo
+	Game                    gamemodel.Game
+	BotConnectionController *BotConnectionController
 
 	// ConnectionOrder []int
 	PlayerConns     []*PlayerConn

@@ -392,7 +392,7 @@ func RoomCreate(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomMana
 	mainContext := context.Background() //TODO: findout which one to use
 	ctx, cancle := context.WithCancel(mainContext)
 
-	fRoom := NewRoom(rManager, request.RoomInfo, ctx, cancle)
+	fRoom := NewRoom(rManager, request.RoomInfo, nil, ctx, cancle)
 
 	go func() {
 		if err := Run(fRoom, rManager); err != nil {
@@ -578,7 +578,7 @@ Found:
 			RoomSize:   6,
 			IsOpen:     true,
 			InitialBet: initialBet,
-		}, ctx, cancle)
+		}, nil, ctx, cancle)
 
 		go func() {
 			if err := Run(fRoom, rManager); err != nil {
@@ -697,7 +697,7 @@ Found:
 			IsOpen:       true,
 			InitialBet:   initialBet,
 			TournamentID: request.TournamentID,
-		}, ctx, cancle)
+		}, nil, ctx, cancle)
 
 		go func() {
 			if err := Run(fRoom, rManager); err != nil {

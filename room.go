@@ -10,7 +10,7 @@ import (
 )
 
 // NewRoom creating new room
-func NewRoom(rManager *RoomManager, ri *gamemodel.RoomInfo, ctx context.Context, cancelFunc context.CancelFunc) *Room {
+func NewRoom(rManager *RoomManager, ri *gamemodel.RoomInfo, bcc *BotConnectionController, ctx context.Context, cancelFunc context.CancelFunc) *Room {
 	if rManager.RoomsCount > 8999 {
 		rManager.RoomsCount = 0
 	}
@@ -31,12 +31,13 @@ func NewRoom(rManager *RoomManager, ri *gamemodel.RoomInfo, ctx context.Context,
 	unicastChannel := make(chan gamemodel.UserIdAndByte)
 
 	Room := &Room{
-		Ctx:           ctx,
-		ContextCancel: cancelFunc,
-		ID:            id,
-		Service:       rManager.Services,
-		PlayerConns:   []*PlayerConn{},
-		RoomInfo:      ri,
+		Ctx:                     ctx,
+		ContextCancel:           cancelFunc,
+		ID:                      id,
+		Service:                 rManager.Services,
+		PlayerConns:             []*PlayerConn{},
+		RoomInfo:                ri,
+		BotConnectionController: bcc,
 
 		Join:                   make(chan *PlayerConn),
 		Leave:                  make(chan *PlayerConn),
@@ -65,6 +66,9 @@ func NewRoom(rManager *RoomManager, ri *gamemodel.RoomInfo, ctx context.Context,
 func Run(r *Room, rManager *RoomManager) error {
 	go r.Game.RunGameListener()
 	go handleBroadcasts(r, rManager)
+	if r.BotConnectionController != nil {
+		go r.BotConnectionController.Run(r.Ctx, r, rManager)
+	}
 
 	for {
 		select {
@@ -80,12 +84,20 @@ func Run(r *Room, rManager *RoomManager) error {
 			}
 			handleJoin(r, rManager, c)
 
+			if r.BotConnectionController != nil {
+				r.BotConnectionController.Join <- c
+			}
+
 		case leavePlayer, ok := <-r.Leave:
 			if !ok {
 				return nil
 			}
 			if err := handleLeave(r, rManager, leavePlayer); err != nil {
 				return err
+			}
+
+			if r.BotConnectionController != nil {
+				r.BotConnectionController.Leave <- leavePlayer
 			}
 
 		case <-r.Ctx.Done():
@@ -265,5 +277,6 @@ func handleLeave(r *Room, rManager *RoomManager, p *PlayerConn) error {
 
 	r.Game.SendRoomToGamePlayerLeave(p.Player, r.Ctx)
 
+	// TODO: we should check if room need bot to join
 	return nil
 }

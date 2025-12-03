@@ -22,6 +22,50 @@ type BotProvider interface {
 	GetBotAvatarURL(botID int) string
 }
 
+type BotConnectionController struct {
+	// Leave when on someone leaves
+	Leave chan *PlayerConn
+
+	// Join when someone joins
+	Join chan *PlayerConn
+
+	// Timer for someone to join, if time exceeds and noone joins then, we join bot
+}
+
+func NewBotConnectionController() *BotConnectionController {
+	return &BotConnectionController{}
+}
+
+func (bcc *BotConnectionController) Run(ctx context.Context, r *Room, rManager *RoomManager) error {
+	for {
+		select {
+		case _, ok := <-bcc.Leave:
+			if !ok {
+				return nil
+			}
+
+		case joinPlayer, ok := <-bcc.Join:
+			if !ok {
+				return nil
+			}
+			if joinPlayer.BotAI == nil {
+				<-time.After(5 * time.Second)
+				botPlayer := NewBotPlayer(rManager, r.RoomInfo.InitialBet) // Give bots ample chips
+				botAI := rManager.BotProvider.NewBot()
+
+				go func(bPlayer *gamemodel.Player, bAI gamemodel.BotAI, rID int, rm *RoomManager) {
+					if err := AddBotToRoom(rID, bPlayer, bAI, rm); err != nil {
+						log.Printf("Bot System: Info - Could not add bot %s to room %d: %v", bPlayer.Name, rID, err)
+					}
+				}(botPlayer, botAI, r.ID, rManager)
+			}
+
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
 // CreateAndPopulateRoomWithBots creates a new room and populates it with a specified number of bots.
 func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, roomNamePrefix string, isPublic bool, numBotsToCreate int, roomSize int, tournamentId int) (*Room, error) {
 	if numBotsToCreate <= 0 || numBotsToCreate > roomSize {
@@ -44,7 +88,9 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 	// 2. Create the Room
 	mainContext := context.Background()
 	ctx, cancel := context.WithCancel(mainContext)
-	fRoom := NewRoom(rManager, ri, ctx, cancel) // NewRoom uses ri.ID and ri.Name
+	bcc := NewBotConnectionController()
+
+	fRoom := NewRoom(rManager, ri, bcc, ctx, cancel) // NewRoom uses ri.ID and ri.Name
 
 	// 3. Register the room
 	if !fRoom.RoomInfo.IsOpen && fRoom.RoomInfo.Password != "" { // Private room with password
@@ -72,8 +118,7 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 
 	// 5. Add bots to the room
 	for i := 0; i < numBotsToCreate; i++ {
-		botPlayerName := fmt.Sprintf("%sBot%d", roomNamePrefix, i+1)
-		botPlayer := NewBotPlayer(rManager, botPlayerName, initialBet) // Give bots ample chips
+		botPlayer := NewBotPlayer(rManager, initialBet) // Give bots ample chips
 		botAI := rManager.BotProvider.NewBot()
 
 		go func(bPlayer *gamemodel.Player, bAI gamemodel.BotAI, rID int, rm *RoomManager) {
@@ -87,7 +132,7 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 
 // NewBotPlayer creates a new bot player instance.
 // Bot IDs are negative to distinguish them from real players.
-func NewBotPlayer(rManager *RoomManager, namePrefix string, initialChips int64) *gamemodel.Player {
+func NewBotPlayer(rManager *RoomManager, initialChips int64) *gamemodel.Player {
 	botIDMutex.Lock()
 	botIDCounter-- // Ensure negative and unique IDs
 	playerID := botIDCounter
