@@ -33,7 +33,10 @@ type BotConnectionController struct {
 }
 
 func NewBotConnectionController() *BotConnectionController {
-	return &BotConnectionController{}
+	return &BotConnectionController{
+		Leave: make(chan *PlayerConn),
+		Join:  make(chan *PlayerConn),
+	}
 }
 
 func (bcc *BotConnectionController) Run(ctx context.Context, r *Room, rManager *RoomManager) error {
