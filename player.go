@@ -1,6 +1,7 @@
 package gamearchitecture
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -203,9 +204,16 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 		cleanupConnection(pc, r)
 	}()
 
+	var botCtx context.Context
+	if pc.BotAI != nil {
+		botCtx = pc.BotAI.Context()
+	} else {
+		botCtx = context.Background() // never cancels
+	}
+
 	for {
 		select {
-		case <-pc.BotAI.Context().Done():
+		case <-botCtx.Done():
 			return // bot cancelled itself -> exit writer
 		case message, ok := <-pc.Ch:
 			if !ok {
