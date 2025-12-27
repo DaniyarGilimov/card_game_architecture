@@ -116,6 +116,7 @@ func (h *GameHandler) RoomHandlerV2(w http.ResponseWriter, r *http.Request) {
 
 // RoomHandlerV3 final version
 func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
+	log.Print("room handler v3 called")
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", 400)
@@ -125,7 +126,7 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 	}
 	request := &RequestJoinRoomV3{}
 	if err := request.ParseRequest(r); err != nil {
-
+		log.Print("parse request error: ", err.Error())
 		ws.Close()
 		return
 	}

@@ -306,8 +306,10 @@ func RoomCloseChannels(fRoom *Room) {
 }
 
 func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *RoomManager) {
+	log.Print("RoomJoinByID called for roomID: ", roomID)
 	user, err := rManager.Services.GetUserByToken(playerToken)
 	if err != nil {
+		log.Print("RoomJoinByID: token error")
 		ws.Close()
 		return
 	}
@@ -320,6 +322,7 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 	defer ClearJoiningMark(user.UserID, rManager)
 
 	if err := AlreadyPlaying(user.Token, rManager); err != nil {
+		log.Print("RoomJoinByID: already playing")
 		ws.Close()
 		return
 	}
@@ -330,6 +333,7 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 	if fRoom == nil {
 		fRoom = rManager.AllCloseRooms[roomID]
 		if fRoom == nil {
+			log.Print("RoomJoinByID: room not found")
 			ws.Close()
 			return
 		}
@@ -339,6 +343,7 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 		b := InstNotEnoughMoney()
 		ws.WriteMessage(websocket.TextMessage, b)
 		ws.Close()
+		log.Print("RoomJoinByID: not enough money")
 		return
 	}
 
@@ -350,6 +355,7 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 		b := InstRoomIsFull()
 		ws.WriteMessage(websocket.TextMessage, b)
 		ws.Close()
+		log.Print("RoomJoinByID: room is full")
 		return
 	}
 
@@ -359,6 +365,7 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 
 	defer cancel()
 
+	log.Print("RoomJoinByID: joining room id ", roomID)
 	Join(ctx, fRoom, playerConn, rManager)
 }
 
