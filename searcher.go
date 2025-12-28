@@ -121,7 +121,7 @@ func SearcherCreate(ws *websocket.Conn, token string, playerId int, rManager *Ro
 	}
 	sc := &SearcherConn{
 		WS:      ws,
-		Ch:      make(chan []byte),
+		Ch:      make(chan []byte, 16), // Buffered to prevent goroutine blocking
 		Token:   token,
 		UserID:  playerId,
 		State:   ss,
@@ -149,26 +149,36 @@ func SearcherCreate(ws *websocket.Conn, token string, playerId int, rManager *Ro
 
 func SearcherDelete(sc *SearcherConn, rManager *RoomManager) {
 	rManager.SearcherLock.Lock()
+	defer rManager.SearcherLock.Unlock()
+
+	// Check if already deleted to prevent double-close panic
+	if _, exists := rManager.AllSearcher[sc.Key]; !exists {
+		return
+	}
+
 	sc.WS.Close()
 	close(sc.Ch)
 	delete(rManager.AllSearcher, sc.Key)
-	rManager.SearcherLock.Unlock()
-
 }
 
 // SendStateSearcher used to refresh a single searcher state
 func SendStateSearcher(sc *SearcherConn, msg []byte) {
 	defer func() {
-
 		recover()
 	}()
-	sc.Ch <- msg
+
+	// Non-blocking send to prevent goroutine leaks
+	select {
+	case sc.Ch <- msg:
+	default:
+		// Channel full or closed, skip this update
+	}
 }
 
 // SearcherListener used to listen searcher via websocket
 func SearcherListener(sc *SearcherConn, roomManager *RoomManager) {
 	defer func() {
-		sc.WS.Close()
+		SearcherDelete(sc, roomManager) // Properly cleanup and signal SearcherWriter to exit
 	}()
 
 	sc.WS.SetReadLimit(MaxMessageSize)
@@ -254,16 +264,18 @@ func SearcherWriter(sc *SearcherConn, roomManager *RoomManager) {
 	ticker := time.NewTicker(PingPeriod)
 	defer func() {
 		ticker.Stop()
-		SearcherDelete(sc, roomManager)
+		// Don't call SearcherDelete here - SearcherListener handles cleanup
+		// This prevents double-close issues
 	}()
 	for {
 		select {
 		case message, ok := <-sc.Ch:
-			sc.WS.SetWriteDeadline(time.Now().Add(WriteWait))
 			if !ok {
+				// Channel closed by SearcherDelete, exit gracefully
 				sc.WS.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
+			sc.WS.SetWriteDeadline(time.Now().Add(WriteWait))
 
 			sc.Mu.Lock()
 			err := sc.WS.WriteMessage(websocket.TextMessage, message)

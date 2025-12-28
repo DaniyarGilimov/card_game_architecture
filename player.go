@@ -84,7 +84,7 @@ func NewPlayerConn(user *model.User, ws *websocket.Conn, room *Room) *PlayerConn
 			RuntimeData: &gamemodel.PlayerRuntimeData{},
 		},
 		Token:        user.Token,
-		Ch:           make(chan []byte),
+		Ch:           make(chan []byte, 64), // Buffered to prevent goroutine blocking
 		LastActivity: time.Now(),
 	}
 
@@ -339,5 +339,13 @@ func SendState(b []byte, pc *PlayerConn, allPlayers []*PlayerConn, room *Room, r
 
 	z := make([]byte, len(b))
 	copy(z, b)
-	pc.Ch <- z
+
+	// Non-blocking send with timeout to prevent goroutine leaks
+	select {
+	case pc.Ch <- z:
+	case <-time.After(2 * time.Second):
+		// Timeout - player connection is likely stuck or dead
+	case <-room.Ctx.Done():
+		// Room is shutting down
+	}
 }
