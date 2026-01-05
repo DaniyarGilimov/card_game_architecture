@@ -321,7 +321,6 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 	defer ClearJoiningMark(user.UserID, rManager)
 
 	if err := AlreadyPlaying(user.Token, rManager); err != nil {
-		log.Print("RoomJoinByID: already playing")
 		ws.Close()
 		return
 	}
