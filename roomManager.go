@@ -526,7 +526,6 @@ Restart:
 	unvisitedCount := CountAvailableUnvisitedRooms(user.UserID, user.Inventory.Chips, rManager)
 	if unvisitedCount == 0 {
 		ResetUserVisitedRooms(user.UserID, rManager)
-		logrus.Infof("Player %d has visited all available rooms. Resetting cycle.", user.UserID)
 	}
 
 	var fRoom *Room
