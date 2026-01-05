@@ -332,7 +332,6 @@ func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *
 	if fRoom == nil {
 		fRoom = rManager.AllCloseRooms[roomID]
 		if fRoom == nil {
-			log.Print("RoomJoinByID: room not found")
 			ws.Close()
 			return
 		}
