@@ -111,14 +111,15 @@ func SearcherRefresher(rManager *RoomManager) {
 // }
 
 func SearcherCreate(ws *websocket.Conn, token string, playerId int, rManager *RoomManager) {
-	rManager.SearcherLock.Lock()
-	defer rManager.SearcherLock.Unlock()
-	ss := &SearcherState{Name: SearchingStop}
+	// Perform database call OUTSIDE the critical section to avoid lock contention
 	player, err := rManager.Repo.GetUserByID(playerId)
 	if err != nil {
 		logrus.Error(err)
+		ws.Close()
 		return
 	}
+
+	ss := &SearcherState{Name: SearchingStop}
 	sc := &SearcherConn{
 		WS:      ws,
 		Ch:      make(chan []byte, 16), // Buffered to prevent goroutine blocking
@@ -128,8 +129,10 @@ func SearcherCreate(ws *websocket.Conn, token string, playerId int, rManager *Ro
 		Chips:   player.Inventory.Chips,
 		Service: rManager.Services,
 	}
-
 	sc.Mu = new(sync.RWMutex)
+
+	// Only hold lock for the minimal map operations
+	rManager.SearcherLock.Lock()
 	if rManager.NumberOfSearchers > 100000 {
 		rManager.NumberOfSearchers = 0
 	}
@@ -139,10 +142,14 @@ func SearcherCreate(ws *websocket.Conn, token string, playerId int, rManager *Ro
 	for exists {
 		if _, exists = rManager.AllSearcher[key]; exists {
 			rManager.NumberOfSearchers++
+			key = fmt.Sprint(rManager.NumberOfSearchers)
+			sc.Key = key
 		}
 	}
 	rManager.AllSearcher[key] = sc
 	rManager.NumberOfSearchers++
+	rManager.SearcherLock.Unlock()
+
 	go SearcherListener(sc, rManager)
 	go SearcherWriter(sc, rManager)
 }
