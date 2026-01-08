@@ -119,9 +119,11 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 	log.Print("room handler v3 called")
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if _, ok := err.(websocket.HandshakeError); ok {
+		log.Print("Not a websocket handshake")
 		http.Error(w, "Not a websocket handshake", 400)
 		return
 	} else if err != nil {
+		log.Print("upgrade error: ", err.Error())
 		return
 	}
 	request := &RequestJoinRoomV3{}
