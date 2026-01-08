@@ -736,20 +736,20 @@ Found:
 func RoomJoinAnyTournamentWithBots(playerToken string, tournamentID int, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(playerToken)
 	if err != nil {
-		log.Print("RoomJoinAnyTournamentV2: token")
+		log.Print("RoomJoinAnyTournamentWithBots: token")
 		ws.Close()
 		return
 	}
 
 	chips, err := rManager.Repo.GetTournamentChips(user.UserID, tournamentID)
 	if err != nil {
-		log.Print("RoomJoinAnyTournamentV2: GetTournamentChips")
+		log.Print("RoomJoinAnyTournamentWithBots: GetTournamentChips")
 		ws.Close()
 		return
 	}
 
 	if chips <= 0 {
-		log.Print("RoomJoinAnyTournamentV2: no tournament chips")
+		log.Print("RoomJoinAnyTournamentWithBots: no tournament chips")
 		ws.Close()
 		return
 	}
@@ -764,7 +764,10 @@ func RoomJoinAnyTournamentWithBots(playerToken string, tournamentID int, ws *web
 	defer ClearJoiningMark(user.UserID, rManager)
 
 Restart:
+	log.Print("RoomJoinAnyTournamentWithBots: doing Restart section")
+
 	if err := AlreadyPlaying(playerToken, rManager); err != nil {
+		log.Print("RoomJoinAnyTournamentWithBots: already playing")
 		ws.Close()
 		return
 	}
@@ -797,6 +800,7 @@ Restart:
 				}
 			}
 
+			log.Print("RoomJoinAnyTournamentWithBots: no room found")
 			rManager.RoomsLock.RUnlock()
 			return
 		}
@@ -827,6 +831,7 @@ Found:
 
 	defer cancel()
 
+	log.Print("RoomJoinAnyTournamentWithBots: in joining section")
 	Join(ctx, fRoom, playerConn, rManager)
 }
 

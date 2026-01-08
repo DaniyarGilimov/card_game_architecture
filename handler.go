@@ -131,6 +131,8 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Print("room handler v3 request type: ", request.Type)
+
 	switch request.Type {
 	case "create_room":
 		RoomCreate(&RequestJoinRoom{
