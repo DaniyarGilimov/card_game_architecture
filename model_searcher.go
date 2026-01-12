@@ -11,6 +11,7 @@ type SearcherConn struct {
 	WS      *websocket.Conn
 	Mu      *sync.RWMutex
 	Ch      chan []byte    //Used to send data
+	Done    chan struct{}  //Used to signal shutdown
 	State   *SearcherState //Used to know searcher's state
 	Key     string         //Used to find in all searchers
 	Token   string         //Searchers token

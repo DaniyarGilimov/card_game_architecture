@@ -749,7 +749,6 @@ func RoomJoinAnyTournamentWithBots(playerToken string, tournamentID int, ws *web
 	}
 
 	if chips <= 0 {
-		log.Print("RoomJoinAnyTournamentWithBots: no tournament chips")
 		ws.Close()
 		return
 	}
@@ -764,7 +763,6 @@ func RoomJoinAnyTournamentWithBots(playerToken string, tournamentID int, ws *web
 	defer ClearJoiningMark(user.UserID, rManager)
 
 Restart:
-	log.Print("RoomJoinAnyTournamentWithBots: doing Restart section")
 
 	if err := AlreadyPlaying(playerToken, rManager); err != nil {
 		log.Print("RoomJoinAnyTournamentWithBots: already playing")
@@ -800,7 +798,6 @@ Restart:
 				}
 			}
 
-			log.Print("RoomJoinAnyTournamentWithBots: no room found")
 			rManager.RoomsLock.RUnlock()
 			return
 		}
@@ -831,24 +828,30 @@ Found:
 
 	defer cancel()
 
-	log.Print("RoomJoinAnyTournamentWithBots: in joining section")
 	Join(ctx, fRoom, playerConn, rManager)
 }
 
 func roomAssignPassword(rManager *RoomManager) string {
-Restart:
+	for {
+		s1 := rand.NewSource(time.Now().UnixNano())
+		r1 := rand.New(s1)
+		randPassword := strconv.Itoa(r1.Intn(9000) + 1000)
 
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
-	randPassword := strconv.Itoa(r1.Intn(9000) + 1000)
-	rManager.CloseRoomsLock.RLock()
-	for _, r := range rManager.AllCloseRooms {
-		if r.RoomInfo.Password == randPassword {
-			goto Restart
+		rManager.CloseRoomsLock.RLock()
+		passwordExists := false
+		for _, r := range rManager.AllCloseRooms {
+			if r.RoomInfo.Password == randPassword {
+				passwordExists = true
+				break
+			}
 		}
+		rManager.CloseRoomsLock.RUnlock()
+
+		if !passwordExists {
+			return randPassword
+		}
+		// Password collision, try again with lock properly released
 	}
-	rManager.CloseRoomsLock.RUnlock()
-	return randPassword
 }
 
 func InstNotEnoughMoney() []byte {

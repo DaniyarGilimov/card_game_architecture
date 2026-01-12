@@ -1,7 +1,6 @@
 package gamearchitecture
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -204,17 +203,16 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 		cleanupConnection(pc, r)
 	}()
 
-	var botCtx context.Context
+	// For bots, we also need to listen to their context
+	var botCtxDone <-chan struct{}
 	if pc.BotAI != nil {
-		botCtx = pc.BotAI.Context()
-	} else {
-		botCtx = context.Background() // never cancels
+		botCtxDone = pc.BotAI.Context().Done()
 	}
 
 	for {
 		select {
-		case <-botCtx.Done():
-			return // bot cancelled itself -> exit writer
+		case <-r.Ctx.Done():
+			return // room context cancelled -> exit writer
 		case message, ok := <-pc.Ch:
 			if !ok {
 				if pc.BotAI != nil {
@@ -267,6 +265,12 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 
 		case <-ticker.C:
 			if pc.BotAI != nil {
+				// Check if bot context is cancelled
+				select {
+				case <-botCtxDone:
+					return
+				default:
+				}
 				// Bots don't need websocket pings. Their activity can be managed by their AI loop.
 				continue
 			}

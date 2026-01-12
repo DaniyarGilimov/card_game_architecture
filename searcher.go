@@ -123,6 +123,7 @@ func SearcherCreate(ws *websocket.Conn, token string, playerId int, rManager *Ro
 	sc := &SearcherConn{
 		WS:      ws,
 		Ch:      make(chan []byte, 16), // Buffered to prevent goroutine blocking
+		Done:    make(chan struct{}),   // Signal channel for shutdown
 		Token:   token,
 		UserID:  playerId,
 		State:   ss,
@@ -164,6 +165,7 @@ func SearcherDelete(sc *SearcherConn, rManager *RoomManager) {
 	}
 
 	sc.WS.Close()
+	close(sc.Done) // Signal SearcherWriter to exit
 	close(sc.Ch)
 	delete(rManager.AllSearcher, sc.Key)
 }
@@ -276,6 +278,9 @@ func SearcherWriter(sc *SearcherConn, roomManager *RoomManager) {
 	}()
 	for {
 		select {
+		case <-sc.Done:
+			// Searcher is being deleted, exit gracefully
+			return
 		case message, ok := <-sc.Ch:
 			if !ok {
 				// Channel closed by SearcherDelete, exit gracefully
