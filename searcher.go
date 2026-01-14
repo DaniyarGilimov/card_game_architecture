@@ -165,7 +165,15 @@ func SearcherDelete(sc *SearcherConn, rManager *RoomManager) {
 	}
 
 	sc.WS.Close()
-	close(sc.Done) // Signal SearcherWriter to exit
+
+	// Close Done channel to signal SearcherWriter to exit
+	select {
+	case <-sc.Done:
+		// Already closed
+	default:
+		close(sc.Done)
+	}
+
 	close(sc.Ch)
 	delete(rManager.AllSearcher, sc.Key)
 }

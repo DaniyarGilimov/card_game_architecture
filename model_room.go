@@ -106,7 +106,8 @@ type PlayerConn struct {
 	WS           *websocket.Conn
 	LastActivity time.Time
 	CleanupOnce  sync.Once
-	Ch           chan []byte // Used to send data (to WebSocket or BotAI)
+	Ch           chan []byte   // Used to send data (to WebSocket or BotAI)
+	Done         chan struct{} // Signal channel for shutdown
 
 	BotAI gamemodel.BotAI // Holds the AI logic for the bot
 

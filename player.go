@@ -84,6 +84,7 @@ func NewPlayerConn(user *model.User, ws *websocket.Conn, room *Room) *PlayerConn
 		},
 		Token:        user.Token,
 		Ch:           make(chan []byte, 64), // Buffered to prevent goroutine blocking
+		Done:         make(chan struct{}),   // Signal channel for shutdown
 		LastActivity: time.Now(),
 	}
 
@@ -101,6 +102,7 @@ func NewBotPlayerConn(botPlayer *gamemodel.Player, room *Room, botAI gamemodel.B
 		Player:       botPlayer,
 		BotAI:        botAI,
 		Ch:           make(chan []byte, 256), // Buffered channel for game updates to bot
+		Done:         make(chan struct{}),    // Signal channel for shutdown
 		Mu:           new(sync.Mutex),
 		LastActivity: time.Now(), // Initialize last activity
 	}
@@ -200,7 +202,7 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 	ticker := time.NewTicker(PingPeriod)
 	defer func() {
 		ticker.Stop()
-		cleanupConnection(pc, r)
+		// Don't call cleanupConnection here - it's handled by the listener
 	}()
 
 	// For bots, we also need to listen to their context
@@ -211,10 +213,21 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 
 	for {
 		select {
+		case <-pc.Done:
+			// Done signal received, exit gracefully
+			if pc.BotAI != nil {
+				pc.BotAI.Shutdown()
+			}
+			return
 		case <-r.Ctx.Done():
-			return // room context cancelled -> exit writer
+			// Room context cancelled -> exit writer
+			if pc.BotAI != nil {
+				pc.BotAI.Shutdown()
+			}
+			return
 		case message, ok := <-pc.Ch:
 			if !ok {
+				// Channel closed, exit gracefully
 				if pc.BotAI != nil {
 					pc.BotAI.Shutdown()
 					return
@@ -263,14 +276,14 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 				}
 			}
 
+		case <-botCtxDone:
+			// Bot context cancelled, exit gracefully
+			if pc.BotAI != nil {
+				pc.BotAI.Shutdown()
+			}
+			return
 		case <-ticker.C:
 			if pc.BotAI != nil {
-				// Check if bot context is cancelled
-				select {
-				case <-botCtxDone:
-					return
-				default:
-				}
 				// Bots don't need websocket pings. Their activity can be managed by their AI loop.
 				continue
 			}
@@ -278,8 +291,6 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 			if err := pc.WS.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
-		case <-r.Ctx.Done():
-			return
 		}
 	}
 }
@@ -292,6 +303,9 @@ func cleanupConnection(pc *PlayerConn, room *Room) {
 			// Closing an already closed connection is usually a no-op or returns an error that can be ignored here.
 			_ = pc.WS.Close()
 		}
+
+		// Signal the writer goroutine to stop first
+		close(pc.Done)
 
 		// Attempt to send the player to the room's leave channel.
 		// Use a timeout to prevent blocking indefinitely if the room is not processing leave events.
@@ -312,7 +326,8 @@ func cleanupConnection(pc *PlayerConn, room *Room) {
 			}
 		}
 
-		close(pc.Ch) // Close the player's outbound message channel. This signals the PlayerWriter to stop.
+		// Close the player's outbound message channel. This signals the PlayerWriter to stop.
+		close(pc.Ch)
 		if pc.BotAI != nil {
 			pc.BotAI.Shutdown()
 		}
