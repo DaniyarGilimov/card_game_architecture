@@ -343,7 +343,7 @@ func InstGetCertainListRoom(initialBet int64, rManager *RoomManager) []byte {
 
 	rManager.RoomsLock.RLock()
 	for _, r := range rManager.AllRooms {
-		if r.RoomInfo.InitialBet == initialBet {
+		if r.RoomInfo.InitialBet == initialBet && r.RoomInfo.TournamentID == 0 {
 			exportRooms = append(exportRooms, &gamemodel.ExportRoomData{
 				ID:           r.ID,
 				Title:        r.RoomInfo.Name,
