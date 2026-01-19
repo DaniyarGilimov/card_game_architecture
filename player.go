@@ -202,7 +202,10 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 	ticker := time.NewTicker(PingPeriod)
 	defer func() {
 		ticker.Stop()
-		// Don't call cleanupConnection here - it's handled by the listener
+
+		if pc.BotAI != nil {
+			cleanupConnection(pc, r)
+		}
 	}()
 
 	// For bots, we also need to listen to their context
