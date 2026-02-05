@@ -53,6 +53,8 @@ type Service interface {
 	CreatePlayerLog(playerId int, playerChips int64, msg []byte, roomId int, tournamentId int, playerIds []int)
 	CreatePlayerSentLog(playerId int, playerChips int64, msg []byte, roomId int, tournamentId int, playerIds []int)
 
+	GetMaxRoomSize() int
+
 	gamemodel.Service
 }
 

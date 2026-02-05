@@ -575,7 +575,7 @@ Found:
 		ctx, cancle := context.WithCancel(mainContext)
 
 		fRoom = NewRoom(rManager, &gamemodel.RoomInfo{
-			RoomSize:   6,
+			RoomSize:   rManager.Services.GetMaxRoomSize(),
 			IsOpen:     true,
 			InitialBet: initialBet,
 		}, nil, ctx, cancle)
