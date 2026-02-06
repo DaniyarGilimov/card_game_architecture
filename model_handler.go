@@ -74,10 +74,13 @@ func (resp *RequestJoinRoomV3) ParseRequest(r *http.Request) error {
 		resp.RoomInfo.IsOpen = false
 		resp.RoomInfo.RoomSize = 6
 	case "join_private_room":
-		if len(params["password"][0]) != 4 {
-			return errors.New("bad request | password length incorrect")
+
+		roomID, err1 := strconv.Atoi(params["room_id"][0])
+		if err1 == nil {
+			resp.RoomID = roomID
+		} else {
+			return errors.New("parse error")
 		}
-		resp.RoomInfo.Password = params["password"][0]
 
 	case "join_by_room_id":
 		roomID, err1 := strconv.Atoi(params["room_id"][0])
@@ -87,9 +90,6 @@ func (resp *RequestJoinRoomV3) ParseRequest(r *http.Request) error {
 			return errors.New("parse error")
 		}
 
-		if len(params["defined"]) > 0 {
-			resp.RoomInfo.DefinedCards = true
-		}
 	case "join_tournament_with_bots":
 		tournamentID, err1 := strconv.Atoi(params["tournament_id"][0])
 		if err1 == nil {

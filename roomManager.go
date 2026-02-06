@@ -304,7 +304,7 @@ func RoomCloseChannels(fRoom *Room) {
 	close(fRoom.Leave)
 	close(fRoom.PingChannel)
 }
-func RoomJoinByPasswordV3(playerToken string, password string, ws *websocket.Conn, rManager *RoomManager) {
+func RoomJoinByPasswordV3(playerToken string, id int, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(playerToken)
 	if err != nil {
 		log.Print("RoomJoinByID: token error")
@@ -327,7 +327,7 @@ func RoomJoinByPasswordV3(playerToken string, password string, ws *websocket.Con
 	var fRoom *Room
 	rManager.CloseRoomsLock.RLock()
 	for _, r := range rManager.AllCloseRooms {
-		if r.RoomInfo.Password == password {
+		if r.RoomInfo.ID == id {
 			fRoom = r
 			break
 		}
