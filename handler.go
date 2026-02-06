@@ -139,7 +139,7 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 
 	switch request.Type {
 	case "join_private_room":
-		RoomJoinByPasswordV3(request.PlayerToken, request.RoomInfo.ID, ws, h.roomManager)
+		RoomJoinByPasswordV3(request.PlayerToken, request.RoomID, ws, h.roomManager)
 
 	case "create_private_room":
 		RoomCreatePrivateV3(&RequestJoinRoom{
