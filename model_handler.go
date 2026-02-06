@@ -28,8 +28,7 @@ type RequestJoinRoomV3 struct {
 
 func (resp *RequestJoinRoomV3) ParseRequest(r *http.Request) error {
 	resp.RoomInfo = &gamemodel.RoomInfo{
-		RoomSize: 6,
-		IsOpen:   true,
+		IsOpen: true,
 	}
 
 	params, _ := url.ParseQuery(r.URL.RawQuery)
@@ -47,6 +46,19 @@ func (resp *RequestJoinRoomV3) ParseRequest(r *http.Request) error {
 	}
 
 	switch resp.Type {
+	case "create_private_room":
+		initialBet, err1 := strconv.Atoi(params["min_bet"][0])
+
+		if initialBet < 5 {
+			initialBet = 5
+		}
+
+		if err1 == nil {
+			resp.RoomInfo.InitialBet = int64(initialBet)
+		} else {
+			return errors.New("parse error")
+		}
+		resp.RoomInfo.IsOpen = false
 	case "create_room":
 		initialBet, err1 := strconv.Atoi(params["min_bet"][0])
 
@@ -61,12 +73,11 @@ func (resp *RequestJoinRoomV3) ParseRequest(r *http.Request) error {
 		}
 		resp.RoomInfo.IsOpen = false
 		resp.RoomInfo.RoomSize = 6
-	// case RequestJoinPrivate:
-	// 	if len(params["password"][0]) != 4 {
-	// 		return errors.New("bad request | password length incorrect")
-	// 	}
-	// 	resp.RoomInfo.Password = params["password"][0]
-	// 	resp.RoomInfo.RoomSize = 6
+	case "join_private_room":
+		if len(params["password"][0]) != 4 {
+			return errors.New("bad request | password length incorrect")
+		}
+		resp.RoomInfo.Password = params["password"][0]
 
 	case "join_by_room_id":
 		roomID, err1 := strconv.Atoi(params["room_id"][0])

@@ -133,9 +133,20 @@ func (h *GameHandler) RoomHandlerV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	request.RoomInfo.RoomSize = h.services.GetMaxRoomSize()
+
 	log.Print("room handler v3 request type: ", request.Type)
 
 	switch request.Type {
+	case "join_private_room":
+		RoomJoinByPasswordV3(request.PlayerToken, request.RoomInfo.Password, ws, h.roomManager)
+
+	case "create_private_room":
+		RoomCreatePrivateV3(&RequestJoinRoom{
+			PlayerToken: request.PlayerToken,
+			RoomInfo:    request.RoomInfo,
+		}, ws, h.roomManager)
+
 	case "create_room":
 		RoomCreate(&RequestJoinRoom{
 			PlayerToken: request.PlayerToken,

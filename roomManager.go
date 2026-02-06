@@ -304,6 +304,67 @@ func RoomCloseChannels(fRoom *Room) {
 	close(fRoom.Leave)
 	close(fRoom.PingChannel)
 }
+func RoomJoinByPasswordV3(playerToken string, password string, ws *websocket.Conn, rManager *RoomManager) {
+	user, err := rManager.Services.GetUserByToken(playerToken)
+	if err != nil {
+		log.Print("RoomJoinByID: token error")
+		ws.Close()
+		return
+	}
+
+	if TryMarkJoining(user.UserID, rManager) {
+		logrus.Warnf("Player %d is already attempting to join a room.", user.UserID)
+		ws.Close()
+		return
+	}
+	defer ClearJoiningMark(user.UserID, rManager)
+
+	if err := AlreadyPlaying(user.Token, rManager); err != nil {
+		ws.Close()
+		return
+	}
+
+	var fRoom *Room
+	rManager.CloseRoomsLock.RLock()
+	for _, r := range rManager.AllCloseRooms {
+		if r.RoomInfo.Password == password {
+			fRoom = r
+			break
+		}
+	}
+	rManager.CloseRoomsLock.RUnlock()
+
+	if fRoom == nil {
+		ws.Close()
+		return
+	}
+
+	if user.Inventory.Chips < fRoom.RoomInfo.InitialBet*3 {
+		b := InstNotEnoughMoney()
+		ws.WriteMessage(websocket.TextMessage, b)
+		ws.Close()
+		return
+	}
+
+	fRoom.PlayerConnsLock.RLock()
+	roomCount := len(fRoom.PlayerConns)
+	fRoom.PlayerConnsLock.RUnlock()
+
+	if fRoom.RoomInfo.RoomSize <= roomCount {
+		b := InstRoomIsFull()
+		ws.WriteMessage(websocket.TextMessage, b)
+		ws.Close()
+		return
+	}
+
+	playerConn := NewPlayerConn(user, ws, fRoom)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+	defer cancel()
+
+	Join(ctx, fRoom, playerConn, rManager)
+}
 
 func RoomJoinByID(playerToken string, roomID int, ws *websocket.Conn, rManager *RoomManager) {
 	user, err := rManager.Services.GetUserByToken(playerToken)
@@ -419,9 +480,71 @@ func RoomCreate(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomMana
 		rManager.RoomsLock.Unlock()
 	}
 
-	rManager.RoomsLock.Lock()
-	rManager.AllRooms[fRoom.ID] = fRoom
-	rManager.RoomsLock.Unlock()
+	playerConn := NewPlayerConn(user, ws, fRoom)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+	defer cancel()
+
+	Join(ctx, fRoom, playerConn, rManager)
+
+}
+
+func RoomCreatePrivateV3(request *RequestJoinRoom, ws *websocket.Conn, rManager *RoomManager) {
+	user, err := rManager.Services.GetUserByToken(request.PlayerToken)
+	if err != nil {
+		ws.Close()
+		return
+	}
+
+	if TryMarkJoining(user.UserID, rManager) {
+		logrus.Warnf("Player %d is already attempting to join a room.", user.UserID)
+		ws.Close()
+		return
+	}
+	defer ClearJoiningMark(user.UserID, rManager)
+
+	if err := AlreadyPlaying(user.Token, rManager); err != nil {
+		ws.Close()
+		return
+	}
+
+	if user.Inventory.Chips < request.RoomInfo.InitialBet*3 {
+		b := InstNotEnoughMoney()
+		ws.WriteMessage(websocket.TextMessage, b)
+
+		ws.Close()
+		return
+	}
+
+	mainContext := context.Background() //TODO: findout which one to use
+	ctx, cancle := context.WithCancel(mainContext)
+
+	fRoom := NewRoom(rManager, request.RoomInfo, nil, ctx, cancle)
+
+	go func() {
+		if err := Run(fRoom, rManager); err != nil {
+			if err.Error() != "context canceled" {
+				log.Print("Closing room with err: " + err.Error())
+			}
+		}
+
+		RoomDelete(fRoom, rManager)
+		cancle()
+		RoomCloseChannels(fRoom)
+	}()
+
+	if !request.RoomInfo.IsOpen {
+		fRoom.RoomInfo.Password = roomAssignPassword(rManager)
+		fRoom.RoomInfo.Name = "Password: " + fRoom.RoomInfo.Password
+		rManager.CloseRoomsLock.Lock()
+		rManager.AllCloseRooms[fRoom.ID] = fRoom
+		rManager.CloseRoomsLock.Unlock()
+	} else {
+		rManager.RoomsLock.Lock()
+		rManager.AllRooms[fRoom.ID] = fRoom
+		rManager.RoomsLock.Unlock()
+	}
 
 	playerConn := NewPlayerConn(user, ws, fRoom)
 
