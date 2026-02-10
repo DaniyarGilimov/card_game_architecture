@@ -56,6 +56,8 @@ func (h *GameHandler) GeneralSocketHandler(w http.ResponseWriter, r *http.Reques
 		ws.Close()
 		return
 	}
+
+	h.services.IncrementStatistic(playerID, "button_selectTable", 1)
 	SearcherCreate(ws, request.PlayerToken, playerID, h.roomManager)
 }
 

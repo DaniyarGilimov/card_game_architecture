@@ -626,6 +626,8 @@ func RoomJoinAny(playerToken string, ws *websocket.Conn, rManager *RoomManager) 
 		return
 	}
 
+	rManager.Services.IncrementStatistic(user.UserID, "button_playNow", 1)
+
 	if TryMarkJoining(user.UserID, rManager) {
 		logrus.Warnf("Player %d is already attempting to join a room.", user.UserID)
 		ws.Close()
