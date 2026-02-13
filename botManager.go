@@ -47,7 +47,7 @@ func NewBotConnectionController(targetBotsCount int, rManager *RoomManager) *Bot
 	}
 }
 
-func (bcc *BotConnectionController) Run(roomCtx context.Context, room *Room) error {
+func (bcc *BotConnectionController) Run(roomCtx context.Context, room *Room, rManager *RoomManager) error {
 	for {
 		select {
 		case _, ok := <-bcc.Leave:
@@ -55,13 +55,13 @@ func (bcc *BotConnectionController) Run(roomCtx context.Context, room *Room) err
 				return nil
 			}
 
-			bcc.handlePlayersCountChange(roomCtx, room)
+			bcc.handlePlayersCountChange(roomCtx, room, rManager)
 
 		case _, ok := <-bcc.Join:
 			if !ok {
 				return nil
 			}
-			bcc.handlePlayersCountChange(roomCtx, room)
+			bcc.handlePlayersCountChange(roomCtx, room, rManager)
 
 		case <-roomCtx.Done():
 			return nil
@@ -69,7 +69,7 @@ func (bcc *BotConnectionController) Run(roomCtx context.Context, room *Room) err
 	}
 }
 
-func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Context, r *Room) {
+func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Context, r *Room, rManager *RoomManager) {
 	onlyBotsLeft := true
 	r.PlayerConnsLock.RLock()
 	count := len(r.PlayerConns)
@@ -89,7 +89,7 @@ func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Con
 	// Priority case: Only 1 player → add bot fast
 	if count == 1 {
 		bcc.Schedule(roomCtx, random(2, 4), func() {
-			bcc.AddBot(r.RoomInfo.InitialBet, r.ID)
+			bcc.AddBot(r.RoomInfo.InitialBet, r.ID, rManager)
 		})
 		return
 	}
@@ -97,7 +97,7 @@ func (bcc *BotConnectionController) handlePlayersCountChange(roomCtx context.Con
 	// Below target (avg should be 4)
 	if count < bcc.targetBotsCount {
 		bcc.Schedule(roomCtx, random(10, 30), func() {
-			bcc.AddBot(r.RoomInfo.InitialBet, r.ID)
+			bcc.AddBot(r.RoomInfo.InitialBet, r.ID, rManager)
 		})
 		return
 	}
@@ -143,7 +143,15 @@ func (bcc *BotConnectionController) Schedule(roomCtx context.Context, duration t
 }
 
 // CreateAndPopulateRoomWithBots creates a new room and populates it with a specified number of bots.
-func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, roomNamePrefix string, isPublic bool, initialBotsToCreate int, targetBotsCount int, roomSize int, tournamentId int) (*Room, error) {
+func CreateAndPopulateRoomWithBots(
+	rManager *RoomManager,
+	initialBet int64,
+	roomNamePrefix string,
+	isPublic bool,
+	initialBotsToCreate int,
+	targetBotsCount int,
+	roomSize int,
+	tournamentId int) (*Room, error) {
 	if initialBotsToCreate <= 0 || initialBotsToCreate > roomSize {
 		return nil, fmt.Errorf("invalid number of bots to create: %d (must be > 0 and <= roomSize %d)", initialBotsToCreate, roomSize)
 	}
@@ -194,13 +202,31 @@ func CreateAndPopulateRoomWithBots(rManager *RoomManager, initialBet int64, room
 
 	// 5. Add bots to the room
 	for i := 0; i < initialBotsToCreate; i++ {
-		bcc.AddBot(initialBet, fRoom.ID)
+		bcc.AddBot(initialBet, fRoom.ID, rManager)
 	}
 	return fRoom, nil
 }
 
-func (bcc *BotConnectionController) AddBot(initialBet int64, rID int) error {
-	botPlayer := bcc.NewBotPlayer(initialBet) // Give bots ample chips
+func (bcc *BotConnectionController) AddBot(initialBet int64, rID int, rManager *RoomManager) error {
+
+	chipsRange := []int64{initialBet * 10, initialBet * 50} // Bots should have between 3x and 5x the initial bet
+
+	roomOptions, _ := rManager.Services.GetRoomOptions()
+
+	for _, v := range roomOptions.RoomOptions {
+		if v.Bet == initialBet {
+			chipsRange = v.ChipsAmount
+			break
+		}
+	}
+
+	// Calculate random chips in upper half of range, rounded to nearest 10
+	rangeSize := chipsRange[1] - chipsRange[0]
+	minThreshold := chipsRange[0] + rangeSize/2
+	randomValue := minThreshold + rand.Int63n(chipsRange[1]-minThreshold+1)
+	botChips := (randomValue + 5) / 10 * 10
+
+	botPlayer := bcc.NewBotPlayer(botChips) // Give bots ample chips
 	botAI := bcc.rManager.BotProvider.NewBot()
 
 	go func(bPlayer *gamemodel.Player, bAI gamemodel.BotAI, rID int, rm *RoomManager) {
@@ -241,24 +267,11 @@ func (bcc *BotConnectionController) RemoveBot(roomCtx context.Context, r *Room) 
 
 // NewBotPlayer creates a new bot player instance.
 // Bot IDs are negative to distinguish them from real players.
-func (bcc *BotConnectionController) NewBotPlayer(initialChips int64) *gamemodel.Player {
+func (bcc *BotConnectionController) NewBotPlayer(chips int64) *gamemodel.Player {
 	botIDMutex.Lock()
 	botIDCounter-- // Ensure negative and unique IDs
 	playerID := botIDCounter
 	botIDMutex.Unlock()
-
-	// Bots are given chips based on the initialBet of the room they might join.
-	// Base amount is 50 times the initialChips.
-	baseChips := initialChips * 50
-
-	// Introduce a wider variation for bot chip amounts.
-	// (playerID % 11) yields values in [-10, ..., -1, 0] for negative playerIDs.
-	// Adding 5 shifts this to the range [-5, ..., +4, +5].
-	// This creates 11 distinct multipliers for the variation.
-	variationMultiplier := (playerID % 11) + 5
-	variation := int64(variationMultiplier) * initialChips
-
-	finalChips := baseChips + variation
 
 	return &gamemodel.Player{
 		Name:     bcc.rManager.BotProvider.GetBotName(-playerID),
@@ -266,7 +279,7 @@ func (bcc *BotConnectionController) NewBotPlayer(initialChips int64) *gamemodel.
 		IsBot:    true,
 		Inventory: &model.PersonInventory{ // Assuming model is accessible or define appropriately
 			PlayerID:       playerID,
-			Chips:          finalChips,
+			Chips:          chips,
 			Throwables:     []*model.ThrowableInventory{},
 			Hats:           []*model.StaticInventory{},
 			ActiveAvatarID: -1,

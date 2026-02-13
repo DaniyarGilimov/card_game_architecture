@@ -67,7 +67,7 @@ func Run(r *Room, rManager *RoomManager) error {
 	go r.Game.RunGameListener()
 	go handleBroadcasts(r, rManager)
 	if r.BotConnectionController != nil {
-		go r.BotConnectionController.Run(r.Ctx, r)
+		go r.BotConnectionController.Run(r.Ctx, r, rManager)
 	}
 
 	for {
