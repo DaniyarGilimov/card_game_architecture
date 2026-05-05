@@ -112,6 +112,8 @@ func NewBotPlayerConn(botPlayer *gamemodel.Player, room *Room, botAI gamemodel.B
 func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) {
 	// Start writer in a goroutine
 	go PlayerWriter(pc, r)
+	defer cleanupConnection(pc, r)
+
 	if pc.BotAI != nil {
 		return // Don't run the WebSocket reader loop for bots
 	}
@@ -129,13 +131,11 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 	for {
 		select {
 		case <-r.Ctx.Done():
-			cleanupConnection(pc, r)
 			return
 		default:
 			pc.WS.SetReadDeadline(time.Now().Add(PongWait))
 			_, message, err := pc.WS.ReadMessage()
 			if err != nil {
-				cleanupConnection(pc, r)
 				return
 			}
 
@@ -147,7 +147,6 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 
 			switch si.Status {
 			case "PLAYER_LEAVE":
-				cleanupConnection(pc, r)
 
 				if pc.BotAI == nil {
 					playersInGame := make([]*gamemodel.Player, len(r.Game.GetPlayers()))
@@ -203,9 +202,9 @@ func PlayerWriter(pc *PlayerConn, r *Room) {
 	defer func() {
 		ticker.Stop()
 
-		if pc.BotAI != nil {
-			cleanupConnection(pc, r)
-		}
+		// if pc.BotAI != nil {
+		cleanupConnection(pc, r)
+		// }
 	}()
 
 	// For bots, we also need to listen to their context
