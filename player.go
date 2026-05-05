@@ -112,11 +112,12 @@ func NewBotPlayerConn(botPlayer *gamemodel.Player, room *Room, botAI gamemodel.B
 func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) {
 	// Start writer in a goroutine
 	go PlayerWriter(pc, r)
-	defer cleanupConnection(pc, r)
 
 	if pc.BotAI != nil {
 		return // Don't run the WebSocket reader loop for bots
 	}
+
+	defer cleanupConnection(pc, r)
 
 	// Set websocket read limits and pong handling
 	pc.WS.SetReadLimit(MaxMessageSize)
