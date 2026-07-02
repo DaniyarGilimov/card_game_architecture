@@ -14,6 +14,25 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// allowedUtilMessages is the set of predefined quick chat messages players may send.
+var allowedUtilMessages = map[string]bool{
+	"Ассаляму алейкум!": true,
+	"Тормоз тез!":       true,
+	"От души родной!":   true,
+	"Давай, рискуй!":    true,
+	"Айырам!":           true,
+	"Уважаю родной!":    true,
+	"Блеф Блеф!":        true,
+	"Айып етпе, сорян!": true,
+	"Мен бақыттымын!":   true,
+	"Маған поқұй":       true,
+	"Ха-Ха-Ха!":         true,
+	"Ай ишак бас!":      true,
+	"Нежданчик бейби":   true,
+	"Косякқа кірдің!":   true,
+	"Говно карты!":      true,
+}
+
 func NewPlayer(token string, rManager *RoomManager, tournamentID int) (*gamemodel.Player, error) {
 	id, err := rManager.Services.ParseToken(token)
 	if err != nil {
@@ -165,7 +184,32 @@ func PlayerConnectionHandler(pc *PlayerConn, r *Room, roomManager *RoomManager) 
 				// here we generate by ourself cz, frontend may send any player id and kick other players in frontend for others
 
 				return
-			case "UTIL_MESSAGE", "UTIL_THROW", "MESSAGE_WITH_ID":
+			case "UTIL_MESSAGE":
+				// MessageInstruction is used to send message
+				type MessageInstruction struct {
+					Status string `json:"status"`
+					Data   struct {
+						Message  string `json:"message"`
+						PlayerId int    `json:"playerId"`
+					} `json:"data"`
+				}
+				var si MessageInstruction
+				if err := json.Unmarshal(message, &si); err != nil {
+					// logrus.Warnf("Player %d sent invalid JSON: %s", pc.PlayerID, string(message))
+					continue
+				}
+
+				if !allowedUtilMessages[si.Data.Message] {
+					go roomManager.Services.CreateFlagUserIdLog(pc.Player.PlayerID, si.Data.Message)
+				} else {
+					select {
+					case r.BroadcastChannel <- message:
+					case <-r.Ctx.Done():
+					case <-time.After(2 * time.Second):
+					}
+				}
+
+			case "UTIL_THROW", "MESSAGE_WITH_ID":
 				select {
 				case r.BroadcastChannel <- message:
 				case <-r.Ctx.Done():
